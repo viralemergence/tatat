@@ -1,0 +1,27 @@
+# Download Docker image to Kamiak with Singularity and convert to Singularity image
+mkdir ./src/singularity_image
+module load singularity
+singularity pull ./src/singularity_image/tatat.sif docker://$DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest
+
+# For making scratch space
+mkworkspace
+export myscratch="$(mkworkspace)"
+echo $myscratch
+lsworkspace
+
+# Load variables for commands
+. ./.env
+
+# Test sra_read_download.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $SRA_DOWNLOAD_DIR:/src/data/download_dir \
+    --bind $SRA_COLLATE_DIR:/src/data/collate_dir \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sra_read_download.py \
+    -sra_number SRR2913352 \
+    -download_dir /src/data/download_dir \
+    -collate_dir /src/data/collate_dir \
+    -testing
