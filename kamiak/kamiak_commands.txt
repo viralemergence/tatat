@@ -37,4 +37,4 @@ singularity exec \
     python3 -u /src/app/fastp_orchestration.py \
     -i /src/data/fastq_dir \
     -o /src/data/trimmed \
-    -u SRR2913352 -r1a $R1_ADAPTER -r2a $R2_ADAPTER
+    -u SRR2913352 -r1a $R1_ADAPTER -r2a $R2_ADAPTER --cpus 10

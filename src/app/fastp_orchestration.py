@@ -30,18 +30,20 @@ class FastpManager:
         self.input_fastqs = input_fastqs
         self.output_fastqs = output_fastqs
 
-    def run_fastp(self, r1_adapter: str, r2_adapter: str) -> None:
+    def run_fastp(self, r1_adapter: str, r2_adapter: str, cpus: int) -> None:
         if len(self.input_fastqs) == 2:
             fastp_command = ["fastp", "-V",
                             "-i", self.input_fastqs[0], "-I", self.input_fastqs[1],
                             "-o", self.output_fastqs[0], "-O", self.output_fastqs[1],
                             "--adapter_sequence", r1_adapter,
-                            "--adapter_sequence_r2", r2_adapter]
+                            "--adapter_sequence_r2", r2_adapter,
+                            "--thread", f"{cpus}"]
         if len(self.input_fastqs) == 1:
             fastp_command = ["fastp", "-V",
                             "-i", self.input_fastqs[0],
                             "-o", self.output_fastqs[0],
-                            "--adapter_sequence", r1_adapter]
+                            "--adapter_sequence", r1_adapter,
+                            "--thread", f"{cpus}"]
 
         p = subprocess.Popen(fastp_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         while p.poll() is None and (line := p.stderr.readline()) != "":
@@ -59,9 +61,10 @@ if __name__ == "__main__":
     parser.add_argument("-u", "--unique_identifier", type=str, required=True)
     parser.add_argument("-r1a", "--r1_adapter", type=str, required=True)
     parser.add_argument("-r2a", "--r2_adapter", type=str, required=True)
+    parser.add_argument("-c", "--cpus", type=int, default=3, required=False)
     args = parser.parse_args()
 
     fpm = FastqPathManager(Path(args.fastq_dir), args.unique_identifier, Path(args.outdir))
 
     fm = FastpManager(fpm.ui_fastq_paths, fpm.output_fastq_paths)
-    fm.run_fastp(args.r1_adapter, args.r2_adapter)
+    fm.run_fastp(args.r1_adapter, args.r2_adapter, args.cpus)
