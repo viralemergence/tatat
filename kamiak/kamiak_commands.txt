@@ -25,3 +25,16 @@ singularity exec \
     -download_dir /src/data/download_dir \
     -collate_dir /src/data/collate_dir \
     -testing
+
+# Test fastp_orchestration.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $SRA_COLLATE_DIR:/src/data/fastq_dir \
+    --bind $FASTQ_TRIMMED_DIR:/src/data/trimmed \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/fastp_orchestration.py \
+    -i /src/data/fastq_dir \
+    -o /src/data/trimmed \
+    -u SRR2913352 -r1a $R1_ADAPTER -r2a $R2_ADAPTER
