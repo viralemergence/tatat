@@ -1,0 +1,15 @@
+# Install docker if necessary
+# On linux:
+sudo apt update
+sudo apt-get install docker.io -y
+
+# Build "tatat" docker image
+sudo docker build --platform=linux/amd64 -t tatat .
+
+# To check under the hood
+sudo docker run --platform=linux/amd64 -it tatat bash
+
+# To push to private repo
+sudo docker login -u $DOCKER_USER_ID
+sudo docker tag tatat:latest $DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest
+sudo docker push $DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest

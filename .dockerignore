@@ -1,0 +1,5 @@
+# Working directory for data
+data/
+
+# git
+.git
