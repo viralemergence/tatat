@@ -12,6 +12,9 @@ lsworkspace
 # Load variables for commands
 . ./.env
 
+# Single: SRR2913352
+# Paired: SRR2914369
+
 # Test sra_read_download.py
 singularity exec \
     --pwd /src \
@@ -21,7 +24,7 @@ singularity exec \
     --bind $SRA_COLLATE_DIR:/src/data/collate_dir \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sra_read_download.py \
-    -sra_number SRR2913352 \
+    -sra_number SRR2914369 \
     -download_dir /src/data/download_dir \
     -collate_dir /src/data/collate_dir \
     -testing
@@ -37,4 +40,19 @@ singularity exec \
     python3 -u /src/app/fastp_orchestration.py \
     -i /src/data/fastq_dir \
     -o /src/data/trimmed \
-    -u SRR2913352 -r1a $R1_ADAPTER -r2a $R2_ADAPTER --cpus 10
+    -u SRR2914369 -r1a $R1_ADAPTER -r2a $R2_ADAPTER --cpus 10
+
+# Test rnaspades_orchestration.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $FASTQ_TRIMMED_DIR:/src/data/trimmed \
+    --bind $RNASPADES_ASSEMBLY_DIR:/src/data/assembly \
+    --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/rnaspades_orchestration.py \
+    -fastq_dir /src/data/trimmed \
+    -assembly_dir /src/data/assembly \
+    -collated_dir /src/data/collated \
+    -unique_identifier SRR2914369 -cpus 10 -memory 30
