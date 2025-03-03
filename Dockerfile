@@ -8,7 +8,8 @@ WORKDIR /src
 RUN apt-get update \
     && apt-get install -y wget \
     && apt-get install build-essential -y \
-    && apt install python3 -y
+    && apt install python3 -y \
+    && apt install python3-pip -y
 
 # Install SRA toolkit
 RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/3.1.1/sratoolkit.3.1.1-ubuntu64.tar.gz -P /src/tools \
@@ -33,6 +34,10 @@ RUN wget https://github.com/ablab/spades/releases/download/v4.0.0/SPAdes-4.0.0-L
 
 # Configure SPAdes
 ENV PATH="/src/tools/SPAdes-4.0.0-Linux/bin:$PATH"
+
+# Install for kmer coverage QC
+RUN pip install pandas==2.2.3
+RUN pip install seaborn==0.13.2
 
 # Install CD-HIT-EST
 RUN wget https://github.com/weizhongli/cdhit/archive/refs/tags/V4.6.1.tar.gz -P /src/tools \
