@@ -56,3 +56,16 @@ singularity exec \
     -assembly_dir /src/data/assembly \
     -collated_dir /src/data/collated \
     -unique_identifier SRR2914369 -cpus 10 -memory 30
+
+# Test kmer_coverage_filtering.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
+    --bind $KMER_COVERAGE_FILTERED_DIR:/src/data/filtered \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/kmer_coverage_filtering.py \
+    -assembly_path /src/data/collated/SRR2913352.fasta \
+    -coverage_cutoff 2 \
+    -outdir /src/data/filtered
