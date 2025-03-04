@@ -64,8 +64,10 @@ singularity exec \
     --bind $HOST_APP_DIR:/src/app \
     --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
     --bind $KMER_COVERAGE_FILTERED_DIR:/src/data/filtered \
+    --bind $HOST_DATA_DIR/kmer_qc:/src/data/kmer_qc \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/kmer_coverage_filtering.py \
     -assembly_path /src/data/collated/SRR2913352.fasta \
-    -coverage_cutoff 2 \
-    -outdir /src/data/filtered
+    -coverage_cutoff 1.5 \
+    -outdir /src/data/filtered \
+    -qc_dir /src/data/kmer_qc
