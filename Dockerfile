@@ -40,11 +40,11 @@ RUN pip install pandas==2.2.3
 RUN pip install seaborn==0.13.2
 
 # Install CD-HIT-EST
-RUN wget https://github.com/weizhongli/cdhit/archive/refs/tags/V4.6.1.tar.gz -P /src/tools \
-    && tar xzvf /src/tools/V4.6.1.tar.gz -C /src/tools \
-    && rm /src/tools/V4.6.1.tar.gz \
-    && cd /src/tools/cdhit-4.6.1 \
+RUN wget https://github.com/weizhongli/cdhit/archive/refs/tags/V4.8.1.tar.gz -P /src/tools \
+    && tar xzvf /src/tools/V4.8.1.tar.gz -C /src/tools \
+    && rm /src/tools/V4.8.1.tar.gz \
+    && cd /src/tools/cdhit-4.8.1 \
     && make openmp=yes
 
 # Configure CD-HIT-EST
-ENV PATH="/src/tools/cdhit-4.6.1:$PATH"
+ENV PATH="/src/tools/cdhit-4.8.1:$PATH"
