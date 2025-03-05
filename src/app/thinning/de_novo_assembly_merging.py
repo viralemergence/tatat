@@ -1,18 +1,21 @@
 from argparse import ArgumentParser
+from os import rename
 from pathlib import Path
 from shutil import copyfileobj
 import subprocess
 from typing import Iterator
 
 class DeNovoAssemblyMerger:
-    def __init__(self, assembly_fasta_dir: Path, outdir: Path, cpus: int, memory: int, concat_size: int) -> None:
+    def __init__(self, assembly_fasta_dir: Path, outdir: Path, outname: str,
+                 cpus: int, memory: int, concat_size: int) -> None:
         self.assembly_fasta_dir = assembly_fasta_dir
         self.outdir = outdir
+        self.outpath = self.outdir / f"{outname}"
         self.cpus = cpus
         self.memory = memory
         self.concat_size = concat_size
 
-    def run(self) -> None:
+    def run(self, seq_identity: float, seq_len_difference: float) -> None:
         fasta_files = self.get_file_list(self.assembly_fasta_dir)
 
         base_file = fasta_files[0]
@@ -25,12 +28,14 @@ class DeNovoAssemblyMerger:
             self.concat_files(fasta_files, concat_file_path)
 
             merged_assembly_file_path =self.set_merged_assembly_path(concat_file_path)
-            self.cd_hit_est_merge(concat_file_path, merged_assembly_file_path, self.memory, self.cpus)
+            self.cd_hit_est_merge(concat_file_path, merged_assembly_file_path, self.memory, self.cpus,
+                                  seq_identity, seq_len_difference)
 
             concat_file_path.unlink()
             if i != self.concat_size:
                 base_file.unlink()
             base_file = merged_assembly_file_path
+        rename(merged_assembly_file_path, self.outpath)
 
     @staticmethod
     def get_file_list(directory: Path) -> list[Path]:
@@ -57,9 +62,11 @@ class DeNovoAssemblyMerger:
         return concat_file_path.parent / f"{concat_file_path.stem}_merged{concat_file_path.suffix}"
 
     @classmethod
-    def cd_hit_est_merge(cls, concat_fasta_path: Path, merged_fasta_path: Path, memory: int, cpus: int) -> None:
+    def cd_hit_est_merge(cls, concat_fasta_path: Path, merged_fasta_path: Path, memory: int, cpus: int,
+                         seq_identity: float, seq_len_difference: float) -> None:
         cd_hit_est_command = ["cd-hit-est", "-i", f"{concat_fasta_path}", "-o", f"{merged_fasta_path}",
-                              "-c", "0.99", "-M", f"{memory}", "-T", f"{cpus}"]
+                              "-c", f"{seq_identity}", "-s", f"{seq_len_difference}",
+                              "-M", f"{memory}", "-T", f"{cpus}"]
         p = subprocess.Popen(cd_hit_est_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         while p.poll() is None and (line := p.stdout.readline()) != "":
@@ -80,10 +87,14 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-assembly_fasta_dir", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
+    parser.add_argument("-outname", type=str, required=True)
     parser.add_argument("-cpus", type=int, required=False, default=1)
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-concat_size", type=int, required=False, default=2)
+    parser.add_argument("-seq_identity", type=float, required=False, default=0.99)
+    parser.add_argument("-seq_len_difference", type=float, required=False, default=0.99)
     args = parser.parse_args()
 
-    dnam = DeNovoAssemblyMerger(Path(args.assembly_fasta_dir), Path(args.outdir), args.cpus, args.mem, args.concat_size)
-    dnam.run()
+    dnam = DeNovoAssemblyMerger(Path(args.assembly_fasta_dir), Path(args.outdir), args.outname,
+                                args.cpus, args.mem, args.concat_size)
+    dnam.run(args.seq_identity, args.seq_len_difference)

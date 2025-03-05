@@ -24,5 +24,5 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/de_novo_assembly_merging.py \
     -assembly_fasta_dir /src/data/filtered \
-    -outdir /src/data/merged \
+    -outdir /src/data/merged -outname transcriptome_thinned.fasta \
     -cpus 20 -mem 40000 -concat_size 20
