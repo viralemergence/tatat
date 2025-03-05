@@ -25,4 +25,4 @@ singularity exec \
     python3 -u /src/app/thinning/de_novo_assembly_merging.py \
     -assembly_fasta_dir /src/data/filtered \
     -outdir /src/data/merged \
-    -cpus 20 -mem 40000 -concat_size 6
+    -cpus 20 -mem 40000 -concat_size 20

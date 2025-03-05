@@ -18,7 +18,7 @@ class DeNovoAssemblyMerger:
         base_file = fasta_files[0]
         i = 1
         for fasta_files_chunk in self.chunk_concat_files(fasta_files[1:], self.concat_size-1):
-            i += (self.concat_size-1)
+            i += len(fasta_files_chunk)
             concat_file_path = self.set_concat_path(self.outdir, "concat", i, base_file.suffix)
 
             fasta_files = [base_file] + fasta_files_chunk
