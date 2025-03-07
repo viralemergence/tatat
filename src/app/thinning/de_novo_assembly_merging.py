@@ -3,7 +3,7 @@ from os import rename
 from pathlib import Path
 from shutil import copyfileobj
 import subprocess
-from typing import Iterator
+from typing import Iterator, Union
 
 class DeNovoAssemblyMerger:
     def __init__(self, assembly_fasta_dir: Path, outdir: Path, outname: str,
@@ -15,7 +15,7 @@ class DeNovoAssemblyMerger:
         self.memory = memory
         self.concat_size = concat_size
 
-    def run(self, seq_identity: float, seq_len_difference: float) -> None:
+    def run(self, seq_identity: float, seq_len_difference: Union[None, float]) -> None:
         fasta_files = self.get_file_list(self.assembly_fasta_dir)
 
         base_file = fasta_files[0]
@@ -30,6 +30,9 @@ class DeNovoAssemblyMerger:
             merged_assembly_file_path =self.set_merged_assembly_path(concat_file_path)
             self.cd_hit_est_merge(concat_file_path, merged_assembly_file_path, self.memory, self.cpus,
                                   seq_identity, seq_len_difference)
+            
+            if i != len(fasta_files):
+                self.remove_cluster_file(merged_assembly_file_path)
 
             concat_file_path.unlink()
             if i != self.concat_size:
@@ -61,12 +64,13 @@ class DeNovoAssemblyMerger:
     def set_merged_assembly_path(concat_file_path: Path) -> Path:
         return concat_file_path.parent / f"{concat_file_path.stem}_merged{concat_file_path.suffix}"
 
-    @classmethod
-    def cd_hit_est_merge(cls, concat_fasta_path: Path, merged_fasta_path: Path, memory: int, cpus: int,
-                         seq_identity: float, seq_len_difference: float) -> None:
+    @staticmethod
+    def cd_hit_est_merge(concat_fasta_path: Path, merged_fasta_path: Path, memory: int, cpus: int,
+                         seq_identity: float, seq_len_difference: Union[None, float]) -> None:
         cd_hit_est_command = ["cd-hit-est", "-i", f"{concat_fasta_path}", "-o", f"{merged_fasta_path}",
-                              "-c", f"{seq_identity}", "-s", f"{seq_len_difference}",
-                              "-M", f"{memory}", "-T", f"{cpus}"]
+                              "-c", f"{seq_identity}", "-M", f"{memory}", "-T", f"{cpus}"]
+        if not seq_len_difference is None:
+            cd_hit_est_command.extend(["-s", f"{seq_len_difference}"])
         p = subprocess.Popen(cd_hit_est_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         while p.poll() is None and (line := p.stdout.readline()) != "":
@@ -75,8 +79,6 @@ class DeNovoAssemblyMerger:
 
         if p.poll() != 0:
             raise Exception("CD-HIT-EST did not complete successfully")
-        
-        cls.remove_cluster_file(merged_fasta_path)
         
     @staticmethod
     def remove_cluster_file(merged_fasta_path: Path) -> None:
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-concat_size", type=int, required=False, default=2)
     parser.add_argument("-seq_identity", type=float, required=False, default=0.99)
-    parser.add_argument("-seq_len_difference", type=float, required=False, default=0.99)
+    parser.add_argument("-seq_len_difference", type=float, required=False)
     args = parser.parse_args()
 
     dnam = DeNovoAssemblyMerger(Path(args.assembly_fasta_dir), Path(args.outdir), args.outname,
