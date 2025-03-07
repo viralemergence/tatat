@@ -57,6 +57,20 @@ singularity exec \
     -collated_dir /src/data/collated \
     -unique_identifier SRR2914369 -cpus 10 -memory 30
 
+# Test merge_fastas_and_set_metadata.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/outdir \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/merge_fastas_and_set_metadata.py \
+    -assembly_fasta_dir /src/data/collated \
+    -outdir /src/data/outdir \
+    -merged_name raw_transcriptome.fasta \
+    -metadata_name transcriptome_metadata.csv
+
 # Test kmer_coverage_filtering.py
 singularity exec \
     --pwd /src \
