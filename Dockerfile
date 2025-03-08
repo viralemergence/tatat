@@ -2,6 +2,9 @@ FROM ubuntu:22.04
 
 WORKDIR /src
 
+# Copy the tools directory which contains the Exonerate compiled binary
+COPY ./src/tools /src/tools
+
 # Install tools for compiling code and install dependencies
 # --CD-HIT requires build-essential
 # --SPAdes requires python3
@@ -48,3 +51,31 @@ RUN wget https://github.com/weizhongli/cdhit/archive/refs/tags/V4.8.1.tar.gz -P 
 
 # Configure CD-HIT-EST
 ENV PATH="/src/tools/cdhit-4.8.1:$PATH"
+
+# Install exonerate dependency
+RUN apt-get update \
+    && apt-get install -y ibglib2.0-dev
+
+# Install exonerate
+RUN tar xzvf /src/tools/exonerate-2.2.0-x86_64.tar.gz -C /src/tools \
+    && rm /src/tools/exonerate-2.2.0-x86_64.tar.gz
+
+# Configure exonerate fastanrdb
+ENV PATH="/src/tools/exonerate-2.2.0-x86_64/bin:$PATH"
+
+# Install BLAST+ dependencies
+RUN apt-get install -y curl \
+    && apt-get install -y perl \
+    && apt-get install libgomp1
+
+# Install BLAST+
+RUN wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast-2.16.0+-x64-linux.tar.gz -P /src/tools \
+    && tar xzvf /src/tools/ncbi-blast-2.16.0+-x64-linux.tar.gz -C /src/tools \
+    && rm /src/tools/ncbi-blast-2.16.0+-x64-linux.tar.gz
+
+# Configure BLAST+
+ENV PATH="/src/tools/ncbi-blast-2.16.0+/bin:$PATH"
+
+# Configure BLAST+ database
+RUN mkdir -p "blastdb"
+ENV BLASTDB="/src/blastdb"
