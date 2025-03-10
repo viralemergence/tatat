@@ -79,3 +79,11 @@ ENV PATH="/src/tools/ncbi-blast-2.16.0+/bin:$PATH"
 # Configure BLAST+ database
 RUN mkdir -p "blastdb"
 ENV BLASTDB="/src/blastdb"
+
+# Install EvidentialGene
+RUN wget http://arthropods.eugenes.org/EvidentialGene/other/evigene_old/evigene.tar -P /src/tools \
+    && tar xvf /src/tools/evigene.tar -C /src/tools \
+    && rm /src/tools/evigene.tar
+
+# Configure EvidentialGene
+ENV EVIGENE="/src/tools/evigene"
