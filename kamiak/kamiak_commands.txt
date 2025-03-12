@@ -99,7 +99,7 @@ singularity exec \
     -outdir /src/data/merged -outname transcriptome_thinned.fasta \
     -cpus 20 -mem 40000 -concat_size 20
 
-# Test evigene_orchestration.sh
+# Test evigene_orchestration.py
 singularity exec \
     --pwd /src \
     --no-home \
@@ -108,8 +108,8 @@ singularity exec \
     --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
     --bind $EVIGENE_OUTPUT_DIR:/src/data/evigene_output \
     $SINGULARITY_IMAGE \
-    bash /src/app/thinning/evigene_orchestration.sh \
-    run_evigene /src/data/evigene_output \
-    /src/data/transcripts/raw_transcriptome_subset.fasta \
-    /src/data/evigene_output/raw_transcriptome_subset.fasta \
-    9 25000
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome_subset.fasta \
+    -outdir /src/data/evigene_output \
+    -metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -cpus 9 -mem 25000 -run_evigene

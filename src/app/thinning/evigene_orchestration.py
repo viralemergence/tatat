@@ -1,0 +1,161 @@
+from argparse import ArgumentParser
+from collections import defaultdict
+from contextlib import contextmanager
+from csv import DictReader, DictWriter
+import os
+from pathlib import Path
+from shutil import copyfileobj
+import subprocess
+from tempfile import NamedTemporaryFile
+from typing import Any
+
+@contextmanager
+def temporarily_change_working_directory(new_directory: Path):
+    starting_directory = os.getcwd()
+    try:
+        os.chdir(new_directory)
+        yield
+    finally:
+        os.chdir(starting_directory)
+
+class EvigeneManager:
+    def __init__(self, assembly_fasta: Path, outdir: Path, cpus: int, memory: int) -> None:
+        self.assembly_fasta = assembly_fasta
+        self.outdir = outdir
+        self.cpus = cpus
+        self.memory = memory
+
+    # Evigene assembly classifier
+    def run_assembly_classifier(self) -> None:
+        soft_link_path = self.set_soft_link_path(self.outdir, self.assembly_fasta)
+        self.make_softlink(self.assembly_fasta, soft_link_path)
+
+        with temporarily_change_working_directory(self.outdir):
+            self.run_evigene(soft_link_path, self.cpus, self.memory)
+
+    @staticmethod
+    def set_soft_link_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / assembly_fasta_path.name
+
+    @staticmethod
+    def make_softlink(original_path: Path, soft_link_path: Path) -> None:
+        ln_command = ["ln", "-s", f"{original_path}", f"{soft_link_path}"]
+        p = subprocess.Popen(ln_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        while p.poll() is None and (line := p.stdout.readline()) != "":
+            print(line.strip())
+        p.wait()
+
+        if p.poll() != 0:
+            print(p.stderr.readlines())
+
+    @staticmethod
+    def run_evigene(soft_link_path: Path, cpus: int, memory: int) -> None:
+        environment_variables = os.environ.copy()
+        evigene_path = environment_variables["EVIGENE"]
+        evigene_command = [f"{evigene_path}/scripts/prot/tr2aacds4.pl", "-NCPU", f"{cpus}", "-MAXMEM", f"{memory}",
+                           "-log", "-cdna", f"{soft_link_path}"]
+        p = subprocess.Popen(evigene_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        while p.poll() is None and (line := p.stdout.readline()) != "":
+            print(line.strip())
+        p.wait()
+
+        if p.poll() != 0:
+            print(p.stderr.readlines())
+            raise Exception("Evigene (tr2aacds4.pl) did not complete successfully")
+        
+    # Append evigene assembly classifier output to metadata
+    def run_metadata_appender(self, metadata_path: Path) -> None:
+        transcript_paths = self.set_transcript_paths(self.outdir, self.assembly_fasta)
+        transcript_classes = self.extract_transcript_classes(transcript_paths)
+
+        tmpfile_path = self.write_appended_metadata_to_tempfile(transcript_classes, metadata_path, self.outdir)
+        self.copy_file(tmpfile_path, metadata_path)
+        tmpfile_path.unlink()
+
+    @classmethod
+    def set_transcript_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
+        transcript_paths = [cls.set_okay_transcript_path(outdir, assembly_fasta_path),
+                            cls.set_okalt_transcript_path(outdir, assembly_fasta_path),
+                            cls.set_drop_transcript_path(outdir, assembly_fasta_path)]
+        return transcript_paths
+
+    @staticmethod
+    def set_okay_transcript_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / "okayset" / f"{assembly_fasta_path.stem}.okay.tr"
+
+    @staticmethod
+    def set_okalt_transcript_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / "okayset" / f"{assembly_fasta_path.stem}.okalt.tr"
+
+    @staticmethod
+    def set_drop_transcript_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / "dropset" / f"{assembly_fasta_path.stem}.drop.tr"
+
+    @staticmethod
+    def extract_transcript_classes(transcript_paths: list[Path]) -> defaultdict[dict[Any]]:
+        transcript_classes = defaultdict(dict)
+
+        for transcript_class_path in transcript_paths:
+            with transcript_class_path.open() as inhandle:
+                while (line := inhandle.readline().strip()):
+                    if line[0] != ">":
+                        continue
+                    sequence_id = line.split(" ")[0][1:]
+                    class_drop_info = line.split(" ")[1][:-1]
+                    transcript_class = class_drop_info.split(",")[0].replace("evgclass=", "")
+                    okay_drop_flag = class_drop_info.split(",")[1]
+                    evigene_pass = True if okay_drop_flag == "okay" else False
+
+                    transcript_classes[sequence_id] = {"transcript_class": transcript_class,
+                                                    "evigene_pass": evigene_pass
+                                                    }
+        return transcript_classes
+
+    @staticmethod
+    def write_appended_metadata_to_tempfile(transcript_classes: defaultdict[dict[Any]], metadata_path: Path, outdir: Path) -> Path:
+        print("Starting to write to tmpfile\n(This may take a moment)")
+        new_fields = list(transcript_classes[next(iter(transcript_classes))].keys())
+
+        with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
+            reader = DictReader(inhandle)
+            write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
+
+            writer = DictWriter(tmpfile, fieldnames=write_field_names)
+            writer.writeheader()
+            for data in reader:
+                sequence_id = data["sequence_id"]
+                try:
+                    transcript_class = transcript_classes[sequence_id]
+                except KeyError:
+                    print(f"Key missing: {sequence_id}")
+                    continue
+                data.update(transcript_class)
+                writer.writerow(data)
+        return Path(tmpfile.name)
+
+    @classmethod
+    def copy_file(cls, infile_path: Path, outfile_path: Path) -> None:
+        print("Starting to copy tmpfile to metadata file")
+        with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
+            copyfileobj(inhandle, outhandle)
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("-assembly_fasta", type=str, required=True)
+    parser.add_argument("-outdir", type=str, required=True)
+    parser.add_argument("-cpus", type=int, required=False, default=1)
+    parser.add_argument("-mem", type=int, required=False, default=1_000)
+    parser.add_argument("-run_evigene", action="store_true", required=False)
+    parser.add_argument("-metadata", type=str, required=False)
+    args = parser.parse_args()
+
+    em = EvigeneManager(Path(args.assembly_fasta), Path(args.outdir), args.cpus, args.mem)
+    if args.run_evigene:
+        print("\nRunning evigene assembly classifier")
+        em.run_assembly_classifier()
+    if args.metadata:
+        print("\nRunning metadata appender")
+        em.run_metadata_appender(Path(args.metadata))
+    print("\nFinished\n")
