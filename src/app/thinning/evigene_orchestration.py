@@ -103,9 +103,13 @@ class EvigeneManager:
                     if line[0] != ">":
                         continue
                     sequence_id = line.split(" ")[0][1:]
-                    class_drop_info = line.split(" ")[1][:-1]
-                    transcript_class = class_drop_info.split(",")[0].replace("evgclass=", "")
-                    okay_drop_flag = class_drop_info.split(",")[1]
+                    try:
+                        class_drop_info = line.split(" ")[1][:-1]
+                        transcript_class = class_drop_info.split(",")[0].replace("evgclass=", "")
+                        okay_drop_flag = class_drop_info.split(",")[1]
+                    except IndexError:
+                        transcript_class = ""
+                        okay_drop_flag = ""
                     evigene_pass = True if okay_drop_flag == "okay" else False
 
                     transcript_classes[sequence_id] = {"transcript_class": transcript_class,

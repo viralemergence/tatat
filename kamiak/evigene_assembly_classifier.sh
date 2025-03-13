@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem=150G
+#SBATCH --mem=90G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -23,8 +23,8 @@ singularity exec \
     --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
     --bind $EVIGENE_OUTPUT_DIR:/src/data/evigene_output \
     $SINGULARITY_IMAGE \
-    bash /src/app/thinning/evigene_orchestration.sh \
-    run_evigene /src/data/evigene_output \
-    /src/data/transcripts/raw_transcriptome.fasta \
-    /src/data/evigene_output/raw_transcriptome.fasta \
-    15 149000
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -outdir /src/data/evigene_output \
+    -metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -cpus 10 -mem 89000 -run_evigene
