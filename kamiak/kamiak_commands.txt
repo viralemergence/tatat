@@ -71,21 +71,6 @@ singularity exec \
     -merged_name raw_transcriptome.fasta \
     -metadata_name transcriptome_metadata.csv
 
-# Test kmer_coverage_filtering.py
-singularity exec \
-    --pwd /src \
-    --no-home \
-    --bind $HOST_APP_DIR:/src/app \
-    --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
-    --bind $KMER_COVERAGE_FILTERED_DIR:/src/data/filtered \
-    --bind $HOST_DATA_DIR/kmer_qc:/src/data/kmer_qc \
-    $SINGULARITY_IMAGE \
-    python3 -u /src/app/thinning/kmer_coverage_filtering.py \
-    -assembly_path /src/data/collated/SRR2913352.fasta \
-    -coverage_cutoff 1.5 \
-    -outdir /src/data/filtered \
-    -qc_dir /src/data/kmer_qc
-
 # Test de_novo_assembly_merging.py
 singularity exec \
     --pwd /src \
@@ -113,3 +98,17 @@ singularity exec \
     -outdir /src/data/evigene_output \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
     -cpus 9 -mem 25000 -run_evigene
+
+# Test kmer_coverage_filtering.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $HOST_DATA_DIR/kmer_qc:/src/data/kmer_qc \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/kmer_coverage_qc.py \
+    -metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -coverage_cutoff 1.5 \
+    -update_kmer_coverage_pass \
+    -qc_dir /src/data/kmer_qc
