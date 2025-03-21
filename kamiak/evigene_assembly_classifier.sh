@@ -5,11 +5,11 @@
 #SBATCH --error=%x_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=alexander.brown@wsu.edu
-#SBATCH --time=7-00:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem=90G
+#SBATCH --mem=120G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -27,4 +27,4 @@ singularity exec \
     -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
     -outdir /src/data/evigene_output \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
-    -cpus 10 -mem 89000 -run_evigene
+    -cpus 10 -mem 119000 -run_evigene
