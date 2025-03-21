@@ -16,13 +16,14 @@ class DeNovoAssemblyManager:
         with self.merged_path.open("w") as merged_outhandle, \
             self.metadata_path.open("w") as metadata_outhandle:
 
-            metadata_fields = ["sequence_id", "length", "kmer_coverage"]
+            metadata_fields = ["sequence_id", "sample_id", "length", "kmer_coverage"]
             metadata_writer = DictWriter(metadata_outhandle, fieldnames=metadata_fields)
             metadata_writer.writeheader()
             
             i = 0
-            for j, fasta_file in enumerate(fasta_files, 1):
-                print(f"Starting on file: {j}")
+            for fasta_file in fasta_files:
+                sample_id = fasta_file.stem
+                print(f"Starting on sample: {sample_id}")
                 for fasta_seq in self.fasta_chunker(fasta_file):
                     i += 1
                     seq_id = f"seq_{i}"
@@ -30,7 +31,7 @@ class DeNovoAssemblyManager:
                     self.write_renamed_fasta_seq(seq_id, merged_outhandle, fasta_seq[1:])
 
                     fasta_header = fasta_seq[0].replace(">", "")
-                    self.write_assembly_metadata(fasta_header, seq_id, metadata_fields, metadata_writer)
+                    self.write_assembly_metadata(fasta_header, seq_id, sample_id, metadata_fields, metadata_writer)
 
     @staticmethod
     def get_file_list(directory: Path) -> list[Path]:
@@ -66,9 +67,9 @@ class DeNovoAssemblyManager:
             outhandle.write(line + "\n")
 
     @classmethod
-    def write_assembly_metadata(cls, fasta_header: str, seq_id: str, metadata_fields: list[str], metadata_writer: DictWriter) -> None:
+    def write_assembly_metadata(cls, fasta_header: str, seq_id: str, sample_id: str, metadata_fields: list[str], metadata_writer: DictWriter) -> None:
         assembly_info = cls.extract_assembly_info(fasta_header)
-        metadata_values = [seq_id, assembly_info["length"], assembly_info["cov"]]
+        metadata_values = [seq_id, sample_id, assembly_info["length"], assembly_info["cov"]]
         metadata = {key: value for key, value in zip(metadata_fields, metadata_values)}
         metadata_writer.writerow(metadata)
 

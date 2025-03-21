@@ -71,19 +71,6 @@ singularity exec \
     -merged_name raw_transcriptome.fasta \
     -metadata_name transcriptome_metadata.csv
 
-# Test de_novo_assembly_merging.py
-singularity exec \
-    --pwd /src \
-    --no-home \
-    --bind $HOST_APP_DIR:/src/app \
-    --bind $KMER_COVERAGE_FILTERED_DIR:/src/data/filtered \
-    --bind $RNASPADES_ASSEMBLIES_MERGED:/src/data/merged \
-    $SINGULARITY_IMAGE \
-    python3 -u /src/app/thinning/de_novo_assembly_merging.py \
-    -assembly_fasta_dir /src/data/filtered \
-    -outdir /src/data/merged -outname transcriptome_thinned.fasta \
-    -cpus 20 -mem 40000 -concat_size 20
-
 # Test evigene_orchestration.py
 singularity exec \
     --pwd /src \
@@ -99,7 +86,7 @@ singularity exec \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
     -cpus 9 -mem 25000 -run_evigene
 
-# Test kmer_coverage_filtering.py
+# Test kmer_coverage_qc.py
 singularity exec \
     --pwd /src \
     --no-home \
