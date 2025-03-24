@@ -26,5 +26,5 @@ singularity exec \
     python3 -u /src/app/thinning/evigene_orchestration.py \
     -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
     -outdir /src/data/evigene_output \
-    -metadata /src/data/transcripts/transcriptome_metadata.csv \
-    -cpus 10 -mem 119000 -run_evigene
+    -cpus 10 -mem 119000 -run_evigene -phetero 2
+    -metadata /src/data/transcripts/transcriptome_metadata.csv

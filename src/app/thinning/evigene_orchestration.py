@@ -2,21 +2,21 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader, DictWriter
-import os
+from os import chdir, environ, getcwd
 from pathlib import Path
 from shutil import copyfileobj
 import subprocess
 from tempfile import NamedTemporaryFile
-from typing import Any
+from typing import Any, Union
 
 @contextmanager
 def temporarily_change_working_directory(new_directory: Path):
-    starting_directory = os.getcwd()
+    starting_directory = getcwd()
     try:
-        os.chdir(new_directory)
+        chdir(new_directory)
         yield
     finally:
-        os.chdir(starting_directory)
+        chdir(starting_directory)
 
 class EvigeneManager:
     def __init__(self, assembly_fasta: Path, outdir: Path, cpus: int, memory: int) -> None:
@@ -26,12 +26,12 @@ class EvigeneManager:
         self.memory = memory
 
     # Evigene assembly classifier
-    def run_assembly_classifier(self) -> None:
+    def run_assembly_classifier(self, phetero: Union[None, int]) -> None:
         soft_link_path = self.set_soft_link_path(self.outdir, self.assembly_fasta)
         self.make_softlink(self.assembly_fasta, soft_link_path)
 
         with temporarily_change_working_directory(self.outdir):
-            self.run_evigene(soft_link_path, self.cpus, self.memory)
+            self.run_evigene(soft_link_path, self.cpus, self.memory, phetero)
 
     @staticmethod
     def set_soft_link_path(outdir: Path, assembly_fasta_path: Path) -> Path:
@@ -50,11 +50,15 @@ class EvigeneManager:
             print(p.stderr.readlines())
 
     @staticmethod
-    def run_evigene(soft_link_path: Path, cpus: int, memory: int) -> None:
-        environment_variables = os.environ.copy()
+    def run_evigene(soft_link_path: Path, cpus: int, memory: int, phetero: Union[None, int]) -> None:
+        environment_variables = environ.copy()
         evigene_path = environment_variables["EVIGENE"]
+
         evigene_command = [f"{evigene_path}/scripts/prot/tr2aacds4.pl", "-NCPU", f"{cpus}", "-MAXMEM", f"{memory}",
                            "-log", "-cdna", f"{soft_link_path}"]
+        if phetero:
+            evigene_command.extend([f"-pHetero={phetero}"])
+
         p = subprocess.Popen(evigene_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         while p.poll() is None and (line := p.stdout.readline()) != "":
@@ -152,13 +156,14 @@ if __name__ == "__main__":
     parser.add_argument("-cpus", type=int, required=False, default=1)
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-run_evigene", action="store_true", required=False)
+    parser.add_argument("-phetero", type=int, required=False)
     parser.add_argument("-metadata", type=str, required=False)
     args = parser.parse_args()
 
     em = EvigeneManager(Path(args.assembly_fasta), Path(args.outdir), args.cpus, args.mem)
     if args.run_evigene:
         print("\nRunning evigene assembly classifier")
-        em.run_assembly_classifier()
+        em.run_assembly_classifier(args.phetero)
     if args.metadata:
         print("\nRunning metadata appender")
         em.run_metadata_appender(Path(args.metadata))
