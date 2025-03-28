@@ -6,7 +6,7 @@ from os import chdir, environ, getcwd
 from pathlib import Path
 from shutil import copyfileobj
 import subprocess
-from tempfile import NamedTemporaryFile
+from tempfile import mkdtemp, NamedTemporaryFile
 from typing import Any, Union
 
 @contextmanager
@@ -17,6 +17,47 @@ def temporarily_change_working_directory(new_directory: Path):
         yield
     finally:
         chdir(starting_directory)
+
+class PrefixedFastaManager:
+    def __init__(self, assembly_fasta: Path, outdir: Path, prefix_column: str, metadata: Path) -> None:
+        self.assembly_fasta = assembly_fasta
+        self.outdir = outdir
+        self.prefix_column = prefix_column
+        self.metadata = metadata
+
+    def run(self) -> Path:
+        sequence_prefix_mapping = self.extract_sequence_prefix_mapping(self.prefix_column, self.metadata)
+        tmp_prefixed_fasta = self.write_temporary_prefixed_fasta(self.assembly_fasta, self.outdir, sequence_prefix_mapping)
+        return tmp_prefixed_fasta
+
+    @staticmethod
+    def extract_sequence_prefix_mapping(prefix_column: str, metadata: Path) -> dict[str]:
+        print("\nExtracting sequence id to prefix mapping")
+        sequence_prefix_mapping = {}
+        with metadata.open() as inhandle:
+            reader = DictReader(inhandle)
+            for data in reader:
+                sequence_id = data["sequence_id"]
+                sequence_prefix = data[prefix_column]
+                sequence_prefix_mapping[sequence_id] = sequence_prefix
+        return sequence_prefix_mapping
+    
+    @staticmethod
+    def write_temporary_prefixed_fasta(assembly_fasta: Path, outdir: Path, sequence_prefix_mapping: dict[str]) -> Path:
+        print("Writing temporary prefixed fasta")
+        temp_dir = mkdtemp(dir=outdir)
+        outfile = Path(temp_dir) / assembly_fasta.name
+        with assembly_fasta.open() as inhandle, outfile.open("w") as outhandle:
+            for line in inhandle:
+                line = line.strip()
+                if line[0] != ">":
+                    outhandle.write(line + "\n")
+                    continue
+                sequence_id = line[1:]
+                prefix = sequence_prefix_mapping[sequence_id]
+                new_header = ">" + "_".join([prefix, "prefix", sequence_id]) # TODO: REMOVE SEQ!
+                outhandle.write(new_header + "\n")
+        return outfile
 
 class EvigeneManager:
     def __init__(self, assembly_fasta: Path, outdir: Path, cpus: int, memory: int) -> None:
@@ -47,7 +88,7 @@ class EvigeneManager:
         p.wait()
 
         if p.poll() != 0:
-            print(p.stderr.readlines())
+            raise Exception(p.stderr.readlines())
 
     @staticmethod
     def run_evigene(soft_link_path: Path, cpus: int, memory: int, phetero: Union[None, int]) -> None:
@@ -157,14 +198,35 @@ if __name__ == "__main__":
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-run_evigene", action="store_true", required=False)
     parser.add_argument("-phetero", type=int, required=False)
+    parser.add_argument("-prefix_column", type=str, required=False)
     parser.add_argument("-metadata", type=str, required=False)
+    parser.add_argument("-run_metadata_appender", action="store_true", required=False)
     args = parser.parse_args()
 
-    em = EvigeneManager(Path(args.assembly_fasta), Path(args.outdir), args.cpus, args.mem)
+    if args.prefix_column and args.metadata:
+        pfm = PrefixedFastaManager(Path(args.assembly_fasta), Path(args.outdir), args.prefix_column, Path(args.metadata))
+        tmp_prefixed_fasta = pfm.run()
+    elif args.prefix_column and not args.metadata:
+        raise Exception("Prefix detected, but not metadata.\nCancelling run")
+    else:
+       tmp_prefixed_fasta = None
+
+    if tmp_prefixed_fasta:
+        assembly_fasta = tmp_prefixed_fasta
+    else:
+        assembly_fasta = Path(args.assembly_fasta)
+
+    em = EvigeneManager(assembly_fasta, Path(args.outdir), args.cpus, args.mem)
+
     if args.run_evigene:
         print("\nRunning evigene assembly classifier")
         em.run_assembly_classifier(args.phetero)
-    if args.metadata:
+    if args.run_metadata_appender:
         print("\nRunning metadata appender")
         em.run_metadata_appender(Path(args.metadata))
+
+    if tmp_prefixed_fasta:
+        tmp_prefixed_fasta.unlink()
+        tmp_prefixed_fasta.parent.rmdir()
+
     print("\nFinished\n")

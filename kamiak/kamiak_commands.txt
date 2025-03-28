@@ -81,10 +81,11 @@ singularity exec \
     --bind $EVIGENE_OUTPUT_DIR:/src/data/evigene_output \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/evigene_orchestration.py \
-    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome_subset.fasta \
     -outdir /src/data/evigene_output \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
-    -cpus 9 -mem 25000 -run_evigene -phetero 2
+    -cpus 9 -mem 25000 -run_evigene -phetero 2 \
+    -prefix_column sample_id
 
 # Test kmer_coverage_qc.py
 singularity exec \

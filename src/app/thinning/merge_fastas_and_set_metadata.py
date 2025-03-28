@@ -26,7 +26,7 @@ class DeNovoAssemblyManager:
                 print(f"Starting on sample: {sample_id}")
                 for fasta_seq in self.fasta_chunker(fasta_file):
                     i += 1
-                    seq_id = f"seq_{i}"
+                    seq_id = f"{i}"
                     
                     self.write_renamed_fasta_seq(seq_id, merged_outhandle, fasta_seq[1:])
 
