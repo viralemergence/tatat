@@ -67,12 +67,12 @@ class EvigeneManager:
         self.memory = memory
 
     # Evigene assembly classifier
-    def run_assembly_classifier(self, phetero: Union[None, int]) -> None:
+    def run_assembly_classifier(self, phetero: Union[None, int], minaa: Union[None, int]) -> None:
         soft_link_path = self.set_soft_link_path(self.outdir, self.assembly_fasta)
         self.make_softlink(self.assembly_fasta, soft_link_path)
 
         with temporarily_change_working_directory(self.outdir):
-            self.run_evigene(soft_link_path, self.cpus, self.memory, phetero)
+            self.run_evigene(soft_link_path, self.cpus, self.memory, phetero, minaa)
 
     @staticmethod
     def set_soft_link_path(outdir: Path, assembly_fasta_path: Path) -> Path:
@@ -91,7 +91,7 @@ class EvigeneManager:
             raise Exception(p.stderr.readlines())
 
     @staticmethod
-    def run_evigene(soft_link_path: Path, cpus: int, memory: int, phetero: Union[None, int]) -> None:
+    def run_evigene(soft_link_path: Path, cpus: int, memory: int, phetero: Union[None, int], minaa: Union[None, int]) -> None:
         environment_variables = environ.copy()
         evigene_path = environment_variables["EVIGENE"]
 
@@ -99,6 +99,8 @@ class EvigeneManager:
                            "-log", "-cdna", f"{soft_link_path}"]
         if phetero:
             evigene_command.extend([f"-pHetero={phetero}"])
+        if minaa:
+            evigene_command.extend([f"-MINAA={minaa}"])
 
         p = subprocess.Popen(evigene_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -147,7 +149,7 @@ class EvigeneManager:
                 while (line := inhandle.readline().strip()):
                     if line[0] != ">":
                         continue
-                    sequence_id = line.split(" ")[0][1:]
+                    sequence_id = line.split(" ")[0][1:].split("_prefix_")[-1]
                     try:
                         class_drop_info = line.split(" ")[1][:-1]
                         transcript_class = class_drop_info.split(",")[0].replace("evgclass=", "")
@@ -198,6 +200,7 @@ if __name__ == "__main__":
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-run_evigene", action="store_true", required=False)
     parser.add_argument("-phetero", type=int, required=False)
+    parser.add_argument("-minaa", type=int, required=False)
     parser.add_argument("-prefix_column", type=str, required=False)
     parser.add_argument("-metadata", type=str, required=False)
     parser.add_argument("-run_metadata_appender", action="store_true", required=False)
@@ -220,7 +223,7 @@ if __name__ == "__main__":
 
     if args.run_evigene:
         print("\nRunning evigene assembly classifier")
-        em.run_assembly_classifier(args.phetero)
+        em.run_assembly_classifier(args.phetero, args.minaa)
     if args.run_metadata_appender:
         print("\nRunning metadata appender")
         em.run_metadata_appender(Path(args.metadata))

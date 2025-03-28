@@ -71,7 +71,7 @@ singularity exec \
     -merged_name raw_transcriptome.fasta \
     -metadata_name transcriptome_metadata.csv
 
-# Test evigene_orchestration.py
+# Test evigene_orchestration.py run_evigene
 singularity exec \
     --pwd /src \
     --no-home \
@@ -84,8 +84,22 @@ singularity exec \
     -assembly_fasta /src/data/transcripts/raw_transcriptome_subset.fasta \
     -outdir /src/data/evigene_output \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
-    -cpus 9 -mem 25000 -run_evigene -phetero 2 \
+    -cpus 9 -mem 25000 -run_evigene -phetero 2 --minaa 99 \
     -prefix_column sample_id
+
+# Test evigene_orchestration.py run_metadata_appender
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $EVIGENE_OUTPUT_DIR:/src/data/evigene_output \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -outdir /src/data/evigene_output \
+    -metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -run_metadata_appender
 
 # Test kmer_coverage_qc.py
 singularity exec \
