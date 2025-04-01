@@ -142,11 +142,12 @@ class EvigeneManager:
 
     @staticmethod
     def extract_transcript_classes(transcript_paths: list[Path]) -> defaultdict[dict[Any]]:
-        transcript_classes = defaultdict(dict)
+        transcript_classes = dict()
 
         for transcript_class_path in transcript_paths:
             with transcript_class_path.open() as inhandle:
-                while (line := inhandle.readline().strip()):
+                for line in inhandle:
+                    line = line.strip()
                     if line[0] != ">":
                         continue
                     sequence_id = line.split(" ")[0][1:].split("_prefix_")[-1]
@@ -155,6 +156,9 @@ class EvigeneManager:
                         transcript_class = class_drop_info.split(",")[0].replace("evgclass=", "")
                         okay_drop_flag = class_drop_info.split(",")[1]
                     except IndexError:
+                        # This IndexError appears to be entirely driven by transcript headers in the
+                        # drop file to which class info is not added. However, not all the headers
+                        # are wrong, so the file is still processed
                         transcript_class = ""
                         okay_drop_flag = ""
                     evigene_pass = True if okay_drop_flag == "okay" else False
@@ -192,6 +196,107 @@ class EvigeneManager:
         with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
             copyfileobj(inhandle, outhandle)
 
+class CdsMetadataManager:
+    def __init__(self, assembly_fasta: Path, outdir: Path, transcript_metadata: Path, cds_metadata: Path) -> None:
+        self.assembly_fasta = assembly_fasta
+        self.outdir = outdir
+        self.transcript_metadata = transcript_metadata
+        self.cds_metadata = cds_metadata
+
+    def run(self) -> None:
+        cds_paths = self.set_cds_paths(self.outdir, self.assembly_fasta)
+        cds_metadata = self.extract_cds_metadata(cds_paths)
+        print(len(cds_metadata))
+
+    @classmethod
+    def set_cds_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
+        transcript_paths = [cls.set_okay_cds_path(outdir, assembly_fasta_path),
+                            cls.set_okalt_cds_path(outdir, assembly_fasta_path)]
+        return transcript_paths
+
+    @staticmethod
+    def set_okay_cds_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / "okayset" / f"{assembly_fasta_path.stem}.okay.cds"
+
+    @staticmethod
+    def set_okalt_cds_path(outdir: Path, assembly_fasta_path: Path) -> Path:
+        return outdir / "okayset" / f"{assembly_fasta_path.stem}.okalt.cds"
+
+    @classmethod
+    def extract_cds_metadata(cls, cds_paths: list[Path]) -> list[dict[Any]]:
+        cds_metadata = list()
+
+        cds_id = 0
+        for cds_path in cds_paths:
+            with cds_path.open() as inhandle:
+                for line in inhandle:
+                    line = line.strip()
+                    try:
+                        if line[0] != ">":
+                            continue
+                    except IndexError:
+                        continue
+
+                    cds_id += 1
+                    transcript_id = cls.extract_transcript_id(line)
+                    evigene_class = cls.extract_evigene_class(line)
+                    strand = cls.extract_strand(line)
+                    start, end = cls.extract_cds_coordinates(line)
+                    cds_len = end - start + 1
+
+                    cds_metadata.append(
+                        {
+                        "cds_id": cds_id,
+                        "transcript_id": transcript_id,
+                        "evigene_class": evigene_class,
+                        "strand": strand,
+                        "start": start,
+                        "end": end,
+                        "cds_len": cds_len
+                        }
+                    )
+        return cds_metadata
+
+    @staticmethod
+    def extract_transcript_id(line: str) -> str:
+        return line.split(" ")[0][1:].split("_prefix_")[-1].replace("utrorf", "")
+
+    @staticmethod
+    def extract_evigene_class(line: str) -> str:
+        return line.split(" ")[-1].replace("evgclass=", "").split(",")[0]
+    
+    @staticmethod
+    def extract_strand(line: str) -> str:
+        return line.split(" ")[4].split("=")[1][:-1]
+    
+    @staticmethod
+    def extract_cds_coordinates(line: str) -> tuple[int, int]:
+        coordinates = line.split(" ")[5].split("=")[1][:-1].split("-")
+        first_coordinate = int(coordinates[0])
+        second_coordinate = int(coordinates[1])
+
+        if first_coordinate < second_coordinate:
+            start = first_coordinate
+            end = second_coordinate
+        else:
+            start = second_coordinate
+            end = first_coordinate
+
+        return start, end
+
+    @staticmethod
+    def set_expected_evigene_classes() -> set[str]:
+        expected_classes = {"althi", "althi1", "althia2", "althinc", "altmfrag", "altmfraga2", "altmid", "altmida2",
+                            "main", "maina2", "mainnc",
+                            "noclass", "noclassa2", "noclassa2nc", "noclassnc",
+                            "parthi", "parthi1", "parthia2",
+                            "perfdupl", "perffrag",
+                            "smallorf"}
+        additional_classes = {"altmidfrag", "altmidfraga2"}
+        expected_classes = expected_classes | additional_classes
+
+        return expected_classes
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-assembly_fasta", type=str, required=True)
@@ -204,6 +309,7 @@ if __name__ == "__main__":
     parser.add_argument("-prefix_column", type=str, required=False)
     parser.add_argument("-metadata", type=str, required=False)
     parser.add_argument("-run_metadata_appender", action="store_true", required=False)
+    parser.add_argument("-cds_metadata", type=str, required=False)
     args = parser.parse_args()
 
     if args.prefix_column and args.metadata:
@@ -231,5 +337,10 @@ if __name__ == "__main__":
     if tmp_prefixed_fasta:
         tmp_prefixed_fasta.unlink()
         tmp_prefixed_fasta.parent.rmdir()
+
+    if args.cds_metadata:
+        print("\nRunning CDS metadata extractor")
+        cmm = CdsMetadataManager(assembly_fasta, Path(args.outdir), Path(args.metadata), Path(args.cds_metadata))
+        cmm.run()
 
     print("\nFinished\n")

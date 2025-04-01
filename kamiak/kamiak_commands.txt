@@ -101,6 +101,20 @@ singularity exec \
     -metadata /src/data/transcripts/transcriptome_metadata.csv \
     -run_metadata_appender
 
+# Test evigene_orchestration.py CdsMetadataManager
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $EVIGENE_OUTPUT_DIR:/src/data/evigene_output \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -outdir /src/data/evigene_output \
+    -metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -cds_metadata /src/data/transcripts/cds_metadata.csv
+
 # Test kmer_coverage_qc.py
 singularity exec \
     --pwd /src \
