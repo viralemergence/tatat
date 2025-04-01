@@ -95,7 +95,7 @@ class EvigeneManager:
         environment_variables = environ.copy()
         evigene_path = environment_variables["EVIGENE"]
 
-        evigene_command = [f"{evigene_path}/scripts/prot/tr2aacds4.pl", "-NCPU", f"{cpus}", "-MAXMEM", f"{memory}",
+        evigene_command = [f"{evigene_path}/scripts/prot/tr2aacds.pl", "-NCPU", f"{cpus}", "-MAXMEM", f"{memory}",
                            "-log", "-cdna", f"{soft_link_path}"]
         if phetero:
             evigene_command.extend([f"-pHetero={phetero}"])
@@ -110,7 +110,7 @@ class EvigeneManager:
 
         if p.poll() != 0:
             print(p.stderr.readlines())
-            raise Exception("Evigene (tr2aacds4.pl) did not complete successfully")
+            raise Exception("Evigene (tr2aacds.pl) did not complete successfully")
         
     # Append evigene assembly classifier output to metadata
     def run_metadata_appender(self, metadata_path: Path) -> None:
