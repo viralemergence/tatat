@@ -183,15 +183,14 @@ class EvigeneManager:
                 sequence_id = data["sequence_id"]
                 try:
                     transcript_class = transcript_classes[sequence_id]
+                    data.update(transcript_class)
                 except KeyError:
                     print(f"Key missing: {sequence_id}")
-                    continue
-                data.update(transcript_class)
                 writer.writerow(data)
         return Path(tmpfile.name)
 
-    @classmethod
-    def copy_file(cls, infile_path: Path, outfile_path: Path) -> None:
+    @staticmethod
+    def copy_file(infile_path: Path, outfile_path: Path) -> None:
         print("Starting to copy tmpfile to metadata file")
         with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
             copyfileobj(inhandle, outhandle)
@@ -200,13 +199,19 @@ class CdsMetadataManager:
     def __init__(self, assembly_fasta: Path, outdir: Path, transcript_metadata: Path, cds_metadata: Path) -> None:
         self.assembly_fasta = assembly_fasta
         self.outdir = outdir
-        self.transcript_metadata = transcript_metadata
-        self.cds_metadata = cds_metadata
+        self.transcript_metadata_path = transcript_metadata
+        self.cds_metadata_path = cds_metadata
 
     def run(self) -> None:
         cds_paths = self.set_cds_paths(self.outdir, self.assembly_fasta)
         cds_metadata = self.extract_cds_metadata(cds_paths)
-        print(len(cds_metadata))
+        self.write_cds_metadata(self.cds_metadata_path, cds_metadata)
+
+        transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(cds_metadata)
+
+        tmpfile_path = self.write_appended_metadata_to_tempfile(transcript_cds_id_mapping, self.transcript_metadata_path, self.outdir)
+        self.copy_file(tmpfile_path, self.transcript_metadata_path)
+        tmpfile_path.unlink()
 
     @classmethod
     def set_cds_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
@@ -246,7 +251,7 @@ class CdsMetadataManager:
 
                     cds_metadata.append(
                         {
-                        "cds_id": cds_id,
+                        "cds_id": str(cds_id),
                         "transcript_id": transcript_id,
                         "evigene_class": evigene_class,
                         "strand": strand,
@@ -296,6 +301,51 @@ class CdsMetadataManager:
         expected_classes = expected_classes | additional_classes
 
         return expected_classes
+
+    @staticmethod
+    def write_cds_metadata(cds_metadata_path: Path, cds_metadata: list[dict[Any]]) -> None:
+        print("\nWriting CDS metadata")
+        with cds_metadata_path.open("w") as outhandle:
+            writer = DictWriter(outhandle, fieldnames=cds_metadata[0].keys())
+            writer.writeheader()
+            for data in cds_metadata:
+                writer.writerow(data)
+
+    @staticmethod
+    def extract_transcript_cds_id_mapping(cds_metadata: list[dict[Any]]) -> dict[str]:
+        transcript_cds_id_mapper = defaultdict(list)
+        for data in cds_metadata:
+            cds_id = data["cds_id"]
+            transcript_id = data["transcript_id"]
+            transcript_cds_id_mapper[transcript_id].append(cds_id)
+        return {transcript_id: ";".join(cds_ids) for transcript_id, cds_ids in transcript_cds_id_mapper.items()}
+
+    @staticmethod
+    def write_appended_metadata_to_tempfile(transcript_cds_id_mapping: dict[str], metadata_path: Path, outdir: Path) -> Path:
+        print("Starting to write appended metadata to tmpfile\n")
+        new_fields = ["cds_ids"]
+
+        with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
+            reader = DictReader(inhandle)
+            write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
+
+            writer = DictWriter(tmpfile, fieldnames=write_field_names)
+            writer.writeheader()
+            for data in reader:
+                transcript_id = data["sequence_id"]
+                try:
+                    cds_ids = transcript_cds_id_mapping[transcript_id]
+                    data.update({"cds_ids": cds_ids})
+                except KeyError:
+                    pass
+                writer.writerow(data)
+        return Path(tmpfile.name)
+
+    @staticmethod
+    def copy_file(infile_path: Path, outfile_path: Path) -> None:
+        print("Starting to copy tmpfile to metadata file")
+        with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
+            copyfileobj(inhandle, outhandle)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
