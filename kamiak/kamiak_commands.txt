@@ -128,3 +128,16 @@ singularity exec \
     -coverage_cutoff 1.5 \
     -update_kmer_coverage_pass \
     -qc_dir /src/data/kmer_qc
+
+# Test cds_extraction.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/evigene_cds_aa_extraction.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -transcript_metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -cds_metadata /src/data/transcripts/cds_metadata.csv \
+    -cds_fasta /src/data/transcripts/cds.fasta
