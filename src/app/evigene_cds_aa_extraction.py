@@ -1,23 +1,33 @@
 from argparse import ArgumentParser
+from constants import CODON_TO_AMINO_ACID
 from csv import DictReader, reader
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Union
 
 class CdsAaFastaManager:
-    def __init__(self, assembly_fasta: Path, transcript_metadata: Path, cds_metadata: Path, cds_fasta: Path) -> None:
+    def __init__(self, assembly_fasta: Path, transcript_metadata: Path, cds_metadata: Path,
+                 cds_fasta: Union[None, Path], aa_fasta: Union[None, Path]) -> None:
         self.assembly_fasta = assembly_fasta
         self.transcript_metadata = transcript_metadata
         self.cds_metadata = cds_metadata
         self.cds_fasta = cds_fasta
+        self.aa_fasta = aa_fasta
 
-    def run(self) -> None:
+    def run(self, codon_to_aa: dict[str]=None) -> None:
         transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(self.transcript_metadata)
         print(len(transcript_cds_id_mapping))
         cds_positions = self.extract_cds_positions(self.cds_metadata)
         print(len(cds_positions))
 
-        if self.cds_fasta:
+        if (self.cds_fasta) and (not self.aa_fasta):
             self.extract_and_write_cds(transcript_cds_id_mapping, cds_positions, self.assembly_fasta, self.cds_fasta)
+        elif (not self.cds_fasta) and (self.aa_fasta):
+            self.extract_and_write_aa(transcript_cds_id_mapping, cds_positions, self.assembly_fasta, self.aa_fasta, codon_to_aa)
+        elif self.cds_fasta and self.aa_fasta:
+            self.extract_and_write_cds_aa(transcript_cds_id_mapping, cds_positions, self.assembly_fasta,
+                                          self.cds_fasta, self.aa_fasta, codon_to_aa)
+        else:
+            raise Exception("Neither output cds nor aa fasta paths detected\nNo calculation performed")
 
     @staticmethod
     def extract_transcript_cds_id_mapping(transcript_metadata: Path) -> dict[list[str]]:
@@ -111,15 +121,80 @@ class CdsAaFastaManager:
         translation_mapping = str.maketrans("ATCG", "TAGC")
         return dna_sequence.translate(translation_mapping)[::-1]
 
+    @classmethod
+    def extract_and_write_aa(cls, transcript_cds_id_mapping: dict[list[str]], cds_positions: dict[Any],
+                              assembly_fasta:Path, aa_fasta: Path, codon_to_aa: dict[str]) -> None:
+        print("Starting cds extraction, aa translation, and aa writing\n(This may take awhile)")
+
+        with aa_fasta.open("w") as aa_outhandle:
+            for fasta_seq in cls.fasta_chunker(assembly_fasta):
+                transcript_id = fasta_seq[0][1:]
+                try:
+                    cds_ids = transcript_cds_id_mapping[transcript_id]
+                except KeyError:
+                    continue
+
+                transcript_seq = "".join(fasta_seq[1:])
+
+                for cds_id in cds_ids:
+                    cds_seq = cls.extract_cds_sequence(cds_positions[cds_id], transcript_seq)
+                    try:
+                        aa_seq = cls.translate_cds_to_aa(cds_seq, codon_to_aa)
+                    except KeyError:
+                        continue
+                    aa_outhandle.write(f">{cds_id}\n")
+                    aa_outhandle.write(f"{aa_seq}\n")
+
+    @classmethod
+    def translate_cds_to_aa(cls, dna_sequence: str, codon_to_aa: dict[str]) -> str:
+        return "".join([codon_to_aa[codon] for codon in cls.codon_chunker(dna_sequence)])
+
+    @staticmethod
+    def codon_chunker(dna_sequence: str) -> Iterator[str]:
+        codon_size = 3
+        for i in range(0, len(dna_sequence), codon_size):
+            yield dna_sequence[i:i+codon_size]
+
+    @classmethod
+    def extract_and_write_cds_aa(cls, transcript_cds_id_mapping: dict[list[str]], cds_positions: dict[Any],
+                              assembly_fasta:Path, cds_fasta:Path, aa_fasta: Path, codon_to_aa: dict[str]) -> None:
+        print("Starting cds extraction, aa translation, and cds and aa writing\n(This may take awhile)")
+
+        with cds_fasta.open("w") as cds_outhandle, aa_fasta.open("w") as aa_outhandle:
+            for fasta_seq in cls.fasta_chunker(assembly_fasta):
+                transcript_id = fasta_seq[0][1:]
+                try:
+                    cds_ids = transcript_cds_id_mapping[transcript_id]
+                except KeyError:
+                    continue
+
+                transcript_seq = "".join(fasta_seq[1:])
+
+                for cds_id in cds_ids:
+                    cds_seq = cls.extract_cds_sequence(cds_positions[cds_id], transcript_seq)
+                    cds_outhandle.write(f">{cds_id}\n")
+                    cds_outhandle.write(f"{cds_seq}\n")
+                    try:
+                        aa_seq = cls.translate_cds_to_aa(cds_seq, codon_to_aa)
+                    except KeyError:
+                        continue
+                    aa_outhandle.write(f">{cds_id}\n")
+                    aa_outhandle.write(f"{aa_seq}\n")
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-assembly_fasta", type=str, required=True)
     parser.add_argument("-transcript_metadata", type=str, required=True)
     parser.add_argument("-cds_metadata", type=str, required=True)
-    parser.add_argument("-cds_fasta", type=str, required=True)
+    parser.add_argument("-cds_fasta", type=str, required=False)
+    parser.add_argument("-aa_fasta", type=str, required=False)
     args = parser.parse_args()
 
-    cafm = CdsAaFastaManager(Path(args.assembly_fasta), Path(args.transcript_metadata), Path(args.cds_metadata), Path(args.cds_fasta))
+    cds_fasta_path = Path(args.cds_fasta) if args.cds_fasta else None
+    aa_fasta_path = Path(args.aa_fasta) if args.aa_fasta else None
+
+    cafm = CdsAaFastaManager(Path(args.assembly_fasta), Path(args.transcript_metadata), Path(args.cds_metadata),
+                             cds_fasta_path, aa_fasta_path)
     print("\nStarting CDS/AA Fasta Manager")
-    cafm.run()
+    cafm.run(CODON_TO_AMINO_ACID)
     print("\nFinished")
