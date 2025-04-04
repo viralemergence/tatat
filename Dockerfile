@@ -87,3 +87,11 @@ RUN wget http://arthropods.eugenes.org/EvidentialGene/other/evigene_old/evigene.
 
 # Configure EvidentialGene
 ENV EVIGENE="/src/tools/evigene"
+
+# Diamond
+RUN wget http://github.com/bbuchfink/diamond/releases/download/v2.1.11/diamond-linux64.tar.gz -P /src/tools/diamond \
+    && tar xzvf /src/tools/diamond/diamond-linux64.tar.gz -C /src/tools/diamond \
+    && rm /src/tools/diamond/diamond-linux64.tar.gz
+
+# Configure Diamond
+ENV PATH="/src/tools/diamond:$PATH"
