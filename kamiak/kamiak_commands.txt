@@ -142,3 +142,26 @@ singularity exec \
     -cds_metadata /src/data/transcripts/cds_metadata.csv \
     -cds_fasta /src/data/transcripts/cds.fasta \
     -aa_fasta /src/data/transcripts/aa.fasta
+
+# To pull nr database
+# Note: takes a long time to download and decompress (~5 hrs on HPC); also ~660 GB in 2025
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --env LC_ALL=C,NCBI_API_KEY=$NCBI_API_KEY \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_BLASTDB_DIR:/src/blastdb \
+    $SINGULARITY_IMAGE \
+    bash /src/app/annotation/database_prep.sh pull-nr-database
+
+# To extract vertebrata sequences from nr database (~20 min on HPC)
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_BLASTDB_DIR:/src/blastdb \
+    --bind $PROTEIN_ACCESSION_DIR:/src/protein_accessions \
+    $SINGULARITY_IMAGE \
+    bash /src/app/annotation/database_prep.sh \
+    extract-taxon-protein-sequences \
+    7742 /src/protein_accessions/7742.fsa
