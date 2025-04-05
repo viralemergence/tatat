@@ -150,7 +150,7 @@ singularity exec \
     --no-home \
     --env LC_ALL=C,NCBI_API_KEY=$NCBI_API_KEY \
     --bind $HOST_APP_DIR:/src/app \
-    --bind $HOST_BLASTDB_DIR:/src/blastdb \
+    --bind $NR_BLASTDB_DIR:/src/blastdb \
     $SINGULARITY_IMAGE \
     bash /src/app/annotation/database_prep.sh pull-nr-database
 
@@ -159,9 +159,40 @@ singularity exec \
     --pwd /src \
     --no-home \
     --bind $HOST_APP_DIR:/src/app \
-    --bind $HOST_BLASTDB_DIR:/src/blastdb \
-    --bind $PROTEIN_ACCESSION_DIR:/src/protein_accessions \
+    --bind $NR_BLASTDB_DIR:/src/blastdb \
+    --bind $TATAT_BLASTDB_DIR:/src/tatat_blastdb \
     $SINGULARITY_IMAGE \
     bash /src/app/annotation/database_prep.sh \
     extract-taxon-protein-sequences \
-    7742 /src/protein_accessions/7742.fsa
+    7742 /src/tatat_blastdb/7742.fsa
+
+# To build vertebrata blast database from sequences (~12 min on HPC)
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $TATAT_BLASTDB_DIR:/src/blastdb \
+    $SINGULARITY_IMAGE \
+    bash /src/app/annotation/database_prep.sh \
+    make_protein_blast_db \
+    /src/blastdb/7742.fsa "vertebrata" 7742 /src/blastdb/vertebrata
+
+# To prepare vertebrata database for diamond usage (~2 min on HPC)
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TATAT_BLASTDB_DIR:/src/blastdb \
+    $SINGULARITY_IMAGE \
+    diamond prepdb -d /src/blastdb/vertebrata
+
+# To run diamond search in blastp mode (~X min on HPC)
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TATAT_BLASTDB_DIR:/src/blastdb \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $DIAMOND_HITS_DIR:/src/diamond_hits \
+    $SINGULARITY_IMAGE \
+    diamond blastp -d /src/blastdb/vertebrata \
+    -q /src/data/transcripts/aa_subset.fasta \
+    -o /src/diamond_hits/aa_subset_hits.tsv
