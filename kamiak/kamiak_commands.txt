@@ -195,4 +195,5 @@ singularity exec \
     $SINGULARITY_IMAGE \
     diamond blastp -d /src/blastdb/vertebrata \
     -q /src/data/transcripts/aa_subset.fasta \
-    -o /src/diamond_hits/aa_subset_hits.tsv
+    -o /src/diamond_hits/aa_subset_hits.tsv \
+    -p 10 -b 8 -c 1 -k 1
