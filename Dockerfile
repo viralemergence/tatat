@@ -88,10 +88,19 @@ RUN wget http://arthropods.eugenes.org/EvidentialGene/other/evigene_old/evigene.
 # Configure EvidentialGene
 ENV EVIGENE="/src/tools/evigene"
 
-# Diamond
+# Install Diamond
 RUN wget http://github.com/bbuchfink/diamond/releases/download/v2.1.11/diamond-linux64.tar.gz -P /src/tools/diamond \
     && tar xzvf /src/tools/diamond/diamond-linux64.tar.gz -C /src/tools/diamond \
     && rm /src/tools/diamond/diamond-linux64.tar.gz
 
 # Configure Diamond
 ENV PATH="/src/tools/diamond:$PATH"
+
+# Install NCBI Datasets & Dataformat
+RUN wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/datasets -P /src/tools/datasets \
+    && wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/dataformat -P /src/tools/dataformat
+
+# Configure Datasets & Dataformat
+ENV PATH="/src/tools/datasets:$PATH"
+ENV PATH="/src/tools/dataformat:$PATH"
+RUN chmod +x /src/tools/datasets/datasets /src/tools/dataformat/dataformat
