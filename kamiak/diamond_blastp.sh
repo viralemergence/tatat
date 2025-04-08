@@ -26,4 +26,5 @@ singularity exec \
     diamond blastp -d /src/blastdb/vertebrata \
     -q /src/data/transcripts/aa.fasta \
     -o /src/diamond_hits/aa_hits.tsv \
+    --outfmt 6 qseqid sseqid qlen \
     -p 20 -b 8 -c 1 -k 1
