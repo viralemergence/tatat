@@ -213,3 +213,14 @@ singularity exec \
     -diamond_results /src/diamond_hits/aa_hits.tsv \
     -accesion_numbers_out /src/diamond_hits/accession_numbers.csv \
     -cds_metadata /src/data/transcripts/cds_metadata.csv
+
+# To calculate intersection of core genes with msa remake genes
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR:/src/data \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/post_annotation_qc/intersect_core_genes.py \
+    -cds_metadata /src/data/assemblies_and_metadata/cds_metadata.csv \
+    -ncbi_genes_path /src/data/ncbi_gene_results_9407.txt
