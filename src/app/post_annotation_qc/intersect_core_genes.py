@@ -26,7 +26,11 @@ class GeneIntersector:
         print(len(tatat_core_genes & ncbi_genes))
         print()
 
-        # print(ncbi_genes - tatat_core_genes)
+        missing_ncbi_genes = ncbi_genes - tatat_core_genes
+        outfile = self.ncbi_genes_path.parent / "missing_ncbi_genes.txt"
+        with outfile.open("w") as outhandle:
+            for gene in missing_ncbi_genes:
+                outhandle.write(f"{gene}\n")
 
     @staticmethod
     def extract_tatat_core_genes(data_path: Path) -> set[str]:

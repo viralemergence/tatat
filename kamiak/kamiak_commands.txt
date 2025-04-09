@@ -223,4 +223,16 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/intersect_core_genes.py \
     -cds_metadata /src/data/assemblies_and_metadata/cds_metadata.csv \
-    -ncbi_genes_path /src/data/ncbi_gene_results_9407.txt
+    -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt
+
+# To calculate intersection of core genes with msa remake genes
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR:/src/data \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/post_annotation_qc/process_human_tissue_expression.py \
+    -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt \
+    -tissue_expression_path /src/data/ncbi_gene_comparison/human_tissue_expression.tsv \
+    -missing_genes_path /src/data/ncbi_gene_comparison/missing_ncbi_genes.txt
