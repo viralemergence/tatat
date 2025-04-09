@@ -104,3 +104,6 @@ RUN wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/d
 ENV PATH="/src/tools/datasets:$PATH"
 ENV PATH="/src/tools/dataformat:$PATH"
 RUN chmod +x /src/tools/datasets/datasets /src/tools/dataformat/dataformat
+
+# Install matplotlib-venn for post annotation analyses
+RUN pip3 install matplotlib-venn==1.1.2
