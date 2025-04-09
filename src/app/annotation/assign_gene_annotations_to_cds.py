@@ -12,7 +12,7 @@ class GeneAssigner:
         self.accession_numbers_out = accession_numbers_out
         self.cds_metadata = cds_metadata
 
-    def run(self) -> None:
+    def run(self, upper: bool) -> None:
         # Extract non redundant accession numbers for submission to NCBI
         cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.diamond_results)
         accession_numbers = self.extract_accession_numbers(cds_id_accession_numbers_mapping)
@@ -21,6 +21,8 @@ class GeneAssigner:
         # Submit accession numbers to NCBI and make mapping to gene symbols
         accession_numbers_gene_mapping = self.submit_accession_numbers_with_ncbi_datasets(self.accession_numbers_out)
         accession_numbers_gene_mapping = self.remove_extraneous_accession_numbers(accession_numbers_gene_mapping, accession_numbers)
+        if upper:
+            accession_numbers_gene_mapping = self.upper_case_genes(accession_numbers_gene_mapping)
 
         # Calculate "core" CDS ids as the longest CDS representing a given gene
         core_cds_ids = self.calculate_core_cds_ids(self.diamond_results,
@@ -92,6 +94,10 @@ class GeneAssigner:
         return {k: v for k, v in accession_numbers_gene_mapping.items() if k in accession_numbers}
 
     @staticmethod
+    def upper_case_genes(accession_numbers_gene_mapping: dict[str]):
+        return {k: v.upper() for k, v in accession_numbers_gene_mapping.items()}
+
+    @staticmethod
     def extract_cds_id_len_mapping(diamond_results: Path) -> dict[str]:
         cds_id_len_mapping = dict()
         with diamond_results.open() as inhandle:
@@ -142,6 +148,8 @@ class GeneAssigner:
                                             primary_key_column: str) -> Path:
         print("Starting to write to tmpfile\n(This may take a moment)")
 
+        empty_metadata_singlet = {field: "" for field in new_fields}
+
         with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
             reader = DictReader(inhandle)
             write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
@@ -154,7 +162,7 @@ class GeneAssigner:
                     new_metadata_singlet = new_metadata[primary_key]
                     data.update(new_metadata_singlet)
                 except KeyError:
-                    pass
+                    data.update(empty_metadata_singlet)
                 writer.writerow(data)
         return Path(tmpfile.name)
 
@@ -169,7 +177,8 @@ if __name__ == "__main__":
     parser.add_argument("-diamond_results", type=str, required=True)
     parser.add_argument("-accesion_numbers_out", type=str, required=True)
     parser.add_argument("-cds_metadata", type=str, required=True)
+    parser.add_argument("-upper", type=bool, required=False, default=True)
     args = parser.parse_args()
 
     ga = GeneAssigner(Path(args.diamond_results), Path(args.accesion_numbers_out), Path(args.cds_metadata))
-    ga.run()
+    ga.run(args.upper)
