@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
 from csv import DictReader
+import matplotlib.pyplot as plt # type: ignore
+from matplotlib_venn import venn2
 from pathlib import Path
 
 class GeneIntersector:
@@ -8,24 +10,22 @@ class GeneIntersector:
         self.ncbi_genes_path = ncbi_genes_path
 
     def run(self) -> None:
+        # Extract genes from files
         tatat_core_genes = self.extract_tatat_core_genes(self.cds_metadata)
         ncbi_genes = self.extract_ncbi_genes(self.ncbi_genes_path)
 
-        print(f"TATAT genes: {len(tatat_core_genes)}")
-        print(f"NCBI genes: {len(ncbi_genes)}")
-        print(len(tatat_core_genes & ncbi_genes))
-        print()
-
+        # Remove hypothetical genes, distinguished by "LOC" prefix
         tatat_core_genes = self.remove_loc_genes(tatat_core_genes)
         ncbi_genes = self.remove_loc_genes(ncbi_genes)
 
+        # Remove low confidence genes, distinguished by "CUNH" prefix
         tatat_core_genes = self.remove_cunh_genes(tatat_core_genes)
         ncbi_genes = self.remove_cunh_genes(ncbi_genes)
-        print(f"TATAT genes: {len(tatat_core_genes)}")
-        print(f"NCBI genes: {len(ncbi_genes)}")
-        print(len(tatat_core_genes & ncbi_genes))
-        print()
 
+        # Generate Venn Diagram showing overlap of gene sets
+        self.generate_venn_diagram(tatat_core_genes, ncbi_genes, self.ncbi_genes_path.parent)
+
+        # Write NCBI genes missing from TATAT genes to file
         missing_ncbi_genes = ncbi_genes - tatat_core_genes
         outfile = self.ncbi_genes_path.parent / "missing_ncbi_genes.txt"
         with outfile.open("w") as outhandle:
@@ -59,6 +59,15 @@ class GeneIntersector:
     @staticmethod
     def remove_cunh_genes(genes: set[str]) -> set[str]:
         return {gene for gene in genes if not gene.startswith("CUNH")}
+
+    @staticmethod
+    def generate_venn_diagram(tatat_core_genes: set[str], ncbi_genes: set[str], outdir: Path) -> None:
+        venn_diagram = venn2([tatat_core_genes, ncbi_genes], ("TATAT Genes", "NCBI Genes"))
+        venn_diagram.get_label_by_id("A").set_position((-.7,0))
+        venn_diagram.get_label_by_id("B").set_position((.7,0))
+        out_plot = outdir / "venn2.png"
+        plt.savefig(out_plot, bbox_inches="tight")
+        plt.close()
 
 if __name__ == "__main__":
     parser = ArgumentParser()
