@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from csv import DictReader
 import matplotlib.pyplot as plt # type: ignore
-from matplotlib_venn import venn2
+from matplotlib_venn import venn2 # type: ignore
 from pathlib import Path
 
 class GeneIntersector:
