@@ -236,3 +236,17 @@ singularity exec \
     -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt \
     -tissue_expression_path /src/data/ncbi_gene_comparison/human_tissue_expression.tsv \
     -missing_genes_path /src/data/ncbi_gene_comparison/missing_ncbi_genes.txt
+
+# Extract core aa sequences evigene_cds_aa_extraction.py
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/evigene_cds_aa_extraction.py \
+    -assembly_fasta /src/data/transcripts/raw_transcriptome.fasta \
+    -transcript_metadata /src/data/transcripts/transcriptome_metadata.csv \
+    -cds_metadata /src/data/transcripts/cds_metadata.csv \
+    -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
+    -aa_fasta /src/data/transcripts/aa_core.fasta

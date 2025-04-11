@@ -1,24 +1,42 @@
 from argparse import ArgumentParser
 from constants import CODON_TO_AMINO_ACID
 from csv import DictReader, reader
+from json import load
 from pathlib import Path
 from typing import Any, Iterator, Union
 
 class CdsAaFastaManager:
     def __init__(self, assembly_fasta: Path, transcript_metadata: Path, cds_metadata: Path,
-                 cds_fasta: Union[None, Path], aa_fasta: Union[None, Path]) -> None:
+                 extraction_fields: Path, cds_fasta: Union[None, Path], aa_fasta: Union[None, Path]) -> None:
         self.assembly_fasta = assembly_fasta
         self.transcript_metadata = transcript_metadata
         self.cds_metadata = cds_metadata
+        self.extraction_fields = self.extract_extraction_fields(extraction_fields)
         self.cds_fasta = cds_fasta
         self.aa_fasta = aa_fasta
 
+    @staticmethod
+    def extract_extraction_fields(json_path: Path) -> dict[dict[str]]:
+        with json_path.open() as inhandle:
+            return load(inhandle)
+
     def run(self, codon_to_aa: dict[str]=None) -> None:
-        transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(self.transcript_metadata)
+        # Extract a dictionary of transcript ids mapping to cds ids (sometimes more than one cds id per transcript id)
+        transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(self.transcript_metadata, self.extraction_fields)
         print(len(transcript_cds_id_mapping))
+
+        # If cds metadata extraction fields are present, extract cds ids that meet the criteria,
+        # then remove any transcript ids whose cds ids do not meet that criteria
+        if self.extraction_fields["cds_metadata"] is not None:
+            filtered_cds_ids = self.extract_filtered_cds_ids(self.cds_metadata, self.extraction_fields)
+            transcript_cds_id_mapping = self.filter_transcript_cds_id_mapping(transcript_cds_id_mapping, filtered_cds_ids)
+            print(len(transcript_cds_id_mapping))
+
+        # Extract cds_position info
         cds_positions = self.extract_cds_positions(self.cds_metadata)
         print(len(cds_positions))
 
+        # Using the remaining transcript ids write cds and/or aa fasta files
         if (self.cds_fasta) and (not self.aa_fasta):
             self.extract_and_write_cds(transcript_cds_id_mapping, cds_positions, self.assembly_fasta, self.cds_fasta)
         elif (not self.cds_fasta) and (self.aa_fasta):
@@ -30,15 +48,20 @@ class CdsAaFastaManager:
             raise Exception("Neither output cds nor aa fasta paths detected\nNo calculation performed")
 
     @staticmethod
-    def extract_transcript_cds_id_mapping(transcript_metadata: Path) -> dict[list[str]]:
+    def extract_transcript_cds_id_mapping(transcript_metadata: Path, extraction_fields: dict[dict[str]]) -> dict[list[str]]:
+        transcript_extraction_fields = extraction_fields["transcriptome_metadata"]
         print("Starting transcript id to cds id mapping")
         transcript_cds_id_mapping = dict()
 
         with transcript_metadata.open() as inhandle:
             reader = DictReader(inhandle)
             for data in reader:
-                evigene_pass = data["evigene_pass"]
-                if evigene_pass != "True":
+                skip = False
+                for field, value in transcript_extraction_fields.items():
+                    if data[field] != value:
+                        skip = True
+                        break
+                if skip:
                     continue
 
                 cds_ids = data["cds_ids"].split(";")
@@ -48,7 +71,42 @@ class CdsAaFastaManager:
                 transcript_id = data["sequence_id"]
                 transcript_cds_id_mapping[transcript_id] = cds_ids
         return transcript_cds_id_mapping
-    
+
+    @staticmethod
+    def extract_filtered_cds_ids(cds_metadata: Path, extraction_fields: dict[dict[str]]) -> set[str]:
+        cds_extraction_fields = extraction_fields["cds_metadata"]
+        print("Starting filtered cds id mapping")
+        filtered_cds_ids = set()
+
+        with cds_metadata.open() as inhandle:
+            reader = DictReader(inhandle)
+            for data in reader:
+                skip = False
+                for field, value in cds_extraction_fields.items():
+                    if data[field] != value:
+                        skip = True
+                        break
+                if skip:
+                    continue
+
+                cds_id = data["cds_id"]
+                filtered_cds_ids.add(cds_id)
+        return filtered_cds_ids
+
+    @staticmethod
+    def filter_transcript_cds_id_mapping(transcript_cds_id_mapping: dict[list[str]], filtered_cds_ids: set[str]) -> dict[list[str]]:
+        filtered_transcript_cds_id_mapping = dict()
+
+        for transcript_id, cds_ids in transcript_cds_id_mapping.items():
+            cds_ids_keepers = []
+            for cds_id in cds_ids:
+                if cds_id in filtered_cds_ids:
+                    cds_ids_keepers.append(cds_id)
+            if len(cds_ids_keepers) < 1:
+                continue
+            filtered_transcript_cds_id_mapping[transcript_id] = cds_ids_keepers
+        return filtered_transcript_cds_id_mapping
+
     @staticmethod
     def extract_cds_positions(cds_metadata: Path) -> dict[Any]:
         print("Starting cds positions extraction")
@@ -186,6 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("-assembly_fasta", type=str, required=True)
     parser.add_argument("-transcript_metadata", type=str, required=True)
     parser.add_argument("-cds_metadata", type=str, required=True)
+    parser.add_argument("-extraction_fields", type=str, required=True)
     parser.add_argument("-cds_fasta", type=str, required=False)
     parser.add_argument("-aa_fasta", type=str, required=False)
     args = parser.parse_args()
@@ -194,7 +253,7 @@ if __name__ == "__main__":
     aa_fasta_path = Path(args.aa_fasta) if args.aa_fasta else None
 
     cafm = CdsAaFastaManager(Path(args.assembly_fasta), Path(args.transcript_metadata), Path(args.cds_metadata),
-                             cds_fasta_path, aa_fasta_path)
+                             Path(args.extraction_fields), cds_fasta_path, aa_fasta_path)
     print("\nStarting CDS/AA Fasta Manager")
     cafm.run(CODON_TO_AMINO_ACID)
     print("\nFinished")
