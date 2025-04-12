@@ -107,3 +107,15 @@ RUN chmod +x /src/tools/datasets/datasets /src/tools/dataformat/dataformat
 
 # Install matplotlib-venn for post annotation analyses
 RUN pip3 install matplotlib-venn==1.1.2
+
+# Install BUSCO gene set analysis dependencies HMMER, biopython, requests
+RUN apt-get install -y hmmer=3.3.2+dfsg-1 \
+    && pip3 install biopython \
+    && pip3 install requests
+
+# Install BUSCO, but limited to gene set analysis
+RUN wget https://gitlab.com/ezlab/busco/-/archive/5.8.3/busco-5.8.3.tar.gz -P /src/tools \
+    && tar xzvf /src/tools/busco-5.8.3.tar.gz -C /src/tools \
+    && rm /src/tools/busco-5.8.3.tar.gz \
+    && cd /src/tools/busco-5.8.3 \
+    && python3 -m pip install .
