@@ -250,3 +250,15 @@ singularity exec \
     -cds_metadata /src/data/transcripts/cds_metadata.csv \
     -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
     -aa_fasta /src/data/transcripts/aa_core.fasta
+
+# Run BUSCO on aa_core.fasta
+singularity exec \
+    --pwd /src/data/busco \
+    --no-home \
+    --bind /etc:/etc \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $BUSCO_DATA_DIR:/src/data/busco \
+    $SINGULARITY_IMAGE \
+    busco -i /src/data/transcripts/aa_core.fasta \
+    -m proteins -l vertebrata_odb12 -c 10 \
+    --opt-out-run-stats
