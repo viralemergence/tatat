@@ -249,7 +249,7 @@ singularity exec \
     -transcript_metadata /src/data/transcripts/transcriptome_metadata.csv \
     -cds_metadata /src/data/transcripts/cds_metadata.csv \
     -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
-    -aa_fasta /src/data/transcripts/aa_core.fasta
+    -aa_fasta /src/data/transcripts/aa_core.fasta -add_gene_name
 
 # Run BUSCO on aa_core.fasta
 singularity exec \
