@@ -262,3 +262,27 @@ singularity exec \
     busco -i /src/data/transcripts/aa_core.fasta \
     -m proteins -l vertebrata_odb12 -c 10 \
     --opt-out-run-stats
+
+# Download Rousettus cds and aa sequences
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind /etc:/etc \
+    --env NCBI_API_KEY=$NCBI_API_KEY \
+    --bind $HOST_DATA_DIR/ncbi_datasets_download:/src/data/ncbi_datasets_download \
+    $SINGULARITY_IMAGE \
+    datasets download genome taxon 9407 --include cds,protein \
+    --assembly-source "RefSeq" --assembly-version "latest" \
+    --filename /src/data/ncbi_datasets_download/9407_datasets.zip
+
+# Run BUSCO on NCBI Rousettus protein.faa
+singularity exec \
+    --pwd /src/data/busco \
+    --no-home \
+    --bind /etc:/etc \
+    --bind $HOST_DATA_DIR/ncbi_datasets_download/ncbi_dataset/data/GCF_014176215.1:/src/data/9407_data \
+    --bind $BUSCO_DATA_DIR:/src/data/busco \
+    $SINGULARITY_IMAGE \
+    busco -i /src/data/9407_data/protein.faa \
+    -m proteins -l vertebrata_odb12 -c 10 \
+    --opt-out-run-stats
