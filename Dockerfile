@@ -119,3 +119,14 @@ RUN wget https://gitlab.com/ezlab/busco/-/archive/5.8.3/busco-5.8.3.tar.gz -P /s
     && rm /src/tools/busco-5.8.3.tar.gz \
     && cd /src/tools/busco-5.8.3 \
     && python3 -m pip install .
+
+# Install Salmon
+RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-1.10.0_linux_x86_64.tar.gz -P /src/tools \
+    && tar xzvf /src/tools/salmon-1.10.0_linux_x86_64.tar.gz -C /src/tools \
+    && rm /src/tools/salmon-1.10.0_linux_x86_64.tar.gz
+
+# Configure Salmon
+ENV PATH="/src/tools/salmon-latest_linux_x86_64/bin:$PATH"
+
+# Install sklearn for post analysis
+RUN pip install scikit-learn==1.6.1
