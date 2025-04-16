@@ -20,6 +20,6 @@ singularity exec \
     --no-home \
     --env LC_ALL=C,NCBI_API_KEY=$NCBI_API_KEY \
     --bind $HOST_APP_DIR:/src/app \
-    --bind $HOST_BLASTDB_DIR:/src/blastdb \
+    --bind $NR_BLASTDB_DIR:/src/blastdb \
     $SINGULARITY_IMAGE \
     bash /src/app/annotation/database_prep.sh pull-nr-database
