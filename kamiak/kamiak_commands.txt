@@ -237,7 +237,7 @@ singularity exec \
     -tissue_expression_path /src/data/ncbi_gene_comparison/human_tissue_expression.tsv \
     -missing_genes_path /src/data/ncbi_gene_comparison/missing_ncbi_genes.txt
 
-# Extract core aa sequences evigene_cds_aa_extraction.py
+# Extract core cds and aa sequences evigene_cds_aa_extraction.py
 singularity exec \
     --pwd /src \
     --no-home \
@@ -249,6 +249,7 @@ singularity exec \
     -transcript_metadata /src/data/transcripts/transcriptome_metadata.csv \
     -cds_metadata /src/data/transcripts/cds_metadata.csv \
     -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
+    -cds_fasta /src/data/transcripts/cds_core.fasta \
     -aa_fasta /src/data/transcripts/aa_core.fasta -add_gene_name
 
 # Run BUSCO on aa_core.fasta
@@ -300,3 +301,53 @@ singularity exec \
     -tatat_aa_fasta /src/data/transcripts/aa_core.fasta \
     -ncbi_cds_fasta /src/data/9407_data/cds_from_genomic.fna \
     -ncbi_aa_fasta /src/data/9407_data/protein.faa
+
+# Index core genes with salmon
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_DATA_DIR/assemblies_and_metadata:/src/data/transcripts \
+    --bind $HOST_DATA_DIR/salmon_index:/src/data/salmon_index \
+    $SINGULARITY_IMAGE \
+    salmon index -t /src/data/transcripts/cds_core.fasta \
+    -i /src/data/salmon_index/rousettus_core -p 10
+
+# Test quantify rna counts with salmon
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR/salmon_index:/src/data/salmon_index \
+    --bind $FASTQ_TRIMMED_DIR:/src/data/fastq_trimmed \
+    --bind $SALMON_COUNTS_DIR:/src/data/salmon_counts \
+    --bind $SALMON_COUNTS_COLLATED_DIR:/src/data/salmon_counts_collated \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/post_annotation_qc/salmon_orchestration.py \
+    -fastq_dir /src/data/fastq_trimmed \
+    -sra SRR2914369 -cpus 10 \
+    -salmon_index /src/data/salmon_index/rousettus_core \
+    -outdir /src/data/salmon_counts \
+    -collated_dir /src/data/salmon_counts_collated
+
+# Collate salmon counts
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR:/src/data \
+    --bind $SALMON_COUNTS_COLLATED_DIR:/src/data/salmon_counts_collated \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/post_annotation_qc/salmon_count_collation.py \
+    -counts_dir /src/data/salmon_counts_collated \
+    -outdir /src/data
+
+# MDS salmon counts
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $HOST_APP_DIR:/src/app \
+    --bind $HOST_DATA_DIR:/src/data \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/post_annotation_qc/salmon_count_mds.py \
+    -counts /src/data/collated_salmon_counts.csv \
+    -metadata /src/data/assemblies_and_metadata/sample_metadata.csv
