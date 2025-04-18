@@ -214,7 +214,7 @@ singularity exec \
     -accesion_numbers_out /src/diamond_hits/accession_numbers.csv \
     -cds_metadata /src/data/transcripts/cds_metadata.csv
 
-# To calculate intersection of core genes with msa remake genes
+# To calculate intersection of TATAT core genes with NCBI genes
 singularity exec \
     --pwd /src \
     --no-home \
@@ -225,7 +225,7 @@ singularity exec \
     -cds_metadata /src/data/assemblies_and_metadata/cds_metadata.csv \
     -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt
 
-# To calculate intersection of core genes with msa remake genes
+# To examine TATAT core genes in relation to human gene expression
 singularity exec \
     --pwd /src \
     --no-home \
