@@ -27,7 +27,7 @@ singularity exec \
     -q /src/data/transcripts/aa.fasta \
     -o /src/diamond_hits/aa_hits.tsv \
     --outfmt 6 qseqid sseqid qlen \
-    -p 20 -b 8 -c 1 -k 1
+    -p 20 -b 8 -c 1 -k 5
 
 singularity exec \
     --pwd /src \
