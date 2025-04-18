@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from collections import defaultdict
 from csv import DictReader, DictWriter, reader
 from pathlib import Path
 from shutil import copyfileobj
@@ -17,21 +18,27 @@ class GeneAssigner:
         cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.diamond_results)
         accession_numbers = self.extract_accession_numbers(cds_id_accession_numbers_mapping)
         self.write_accession_numbers(self.accession_numbers_out, accession_numbers)
+        print(f"\nAccession numbers count: {len(accession_numbers)}")
 
         # Submit accession numbers to NCBI and make mapping to gene symbols
         accession_numbers_gene_mapping = self.submit_accession_numbers_with_ncbi_datasets(self.accession_numbers_out)
         accession_numbers_gene_mapping = self.remove_extraneous_accession_numbers(accession_numbers_gene_mapping, accession_numbers)
         if upper:
             accession_numbers_gene_mapping = self.upper_case_genes(accession_numbers_gene_mapping)
+        print(len(accession_numbers_gene_mapping))
+
+        # Assign best "gene" hit to cds id
+        cds_id_best_gene_mapping = self.assign_best_gene_to_cds_ids(accession_numbers_gene_mapping, cds_id_accession_numbers_mapping)
+        print(len(cds_id_best_gene_mapping))
 
         # Calculate "core" CDS ids as the longest CDS representing a given gene
-        core_cds_ids = self.calculate_core_cds_ids(self.diamond_results,
-                                                   accession_numbers_gene_mapping, cds_id_accession_numbers_mapping)
+        core_cds_ids = self.calculate_core_cds_ids(self.diamond_results, cds_id_best_gene_mapping)
+        print(f"Core CDS count: {len(core_cds_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to CDS metadata file
         diamond_results_metadata_fields = ["accession_number", "gene", "core_cds"]
         diamond_results_metadata = self.collate_diamond_results_metadata(cds_id_accession_numbers_mapping,
-                                                                         accession_numbers_gene_mapping, core_cds_ids)
+                                                                         cds_id_best_gene_mapping, core_cds_ids)
         
         # Append new metadata to CDS metadata file
         tmpfile_path = self.write_appended_metadata_to_tempfile(self.cds_metadata, self.diamond_results.parent,
@@ -41,19 +48,19 @@ class GeneAssigner:
         tmpfile_path.unlink()
 
     @staticmethod
-    def extract_cds_id_accession_numbers_mapping(diamond_results: Path) -> dict[str]:
-        cds_id_accession_numbers_mapping = dict()
+    def extract_cds_id_accession_numbers_mapping(diamond_results: Path) -> dict[list[str]]:
+        cds_id_accession_numbers_mapping = defaultdict(list)
         with diamond_results.open() as inhandle:
             diamond_reader = reader(inhandle, delimiter="\t")
             for line in diamond_reader:
                 cds_id = line[0]
                 accession_number = line[1]
-                cds_id_accession_numbers_mapping[cds_id] = accession_number
-        return cds_id_accession_numbers_mapping
+                cds_id_accession_numbers_mapping[cds_id].append(accession_number)
+        return dict(cds_id_accession_numbers_mapping)
 
     @staticmethod
     def extract_accession_numbers(cds_id_accession_numbers_mapping: dict[str]) -> set[str]:
-        return set(cds_id_accession_numbers_mapping.values())
+        return set().union(*cds_id_accession_numbers_mapping.values())
 
     @staticmethod
     def write_accession_numbers(accession_numbers_out: Path, accession_numbers: set[str]) -> None:
@@ -98,6 +105,59 @@ class GeneAssigner:
         return {k: v.upper() for k, v in accession_numbers_gene_mapping.items()}
 
     @staticmethod
+    def assign_best_gene_to_cds_ids(accession_numbers_gene_mapping: dict[str],
+                               cds_id_accession_numbers_mapping: dict[list[str]]) -> dict[dict[str]]:
+
+        cds_id_best_gene_mapping = {}
+
+        for cds_id, accession_numbers in cds_id_accession_numbers_mapping.items():
+            first_hit = None
+            gene_hit = None
+            for accession_number in accession_numbers:
+                try:
+                    gene = accession_numbers_gene_mapping[accession_number]
+                except KeyError:
+                    continue
+                
+                if first_hit is None:
+                    first_hit = {"accession": accession_number, "gene": gene}
+
+                if gene.startswith("LOC"):
+                    continue
+                else:
+                    gene_hit = {"accession": accession_number, "gene": gene}
+                    break
+            
+            if first_hit is None and gene_hit is None:
+                continue
+            elif first_hit and gene_hit is None:
+                best_hit = first_hit
+            elif first_hit and gene_hit:
+                best_hit = gene_hit
+            
+            cds_id_best_gene_mapping[cds_id] = best_hit
+
+        return cds_id_best_gene_mapping
+
+    @classmethod
+    def calculate_core_cds_ids(cls, diamond_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[str]:
+        cds_id_len_mapping = cls.extract_cds_id_len_mapping(diamond_results)
+
+        longest_cds = {gene: {"cds_id": "", "cds_len": 0} for gene in set(cds_info["gene"] for cds_info in cds_id_best_gene_mapping.values())}
+        for cds_id, cds_len in cds_id_len_mapping.items():
+            try:
+                gene = cds_id_best_gene_mapping[cds_id]["gene"]
+            except KeyError:
+                continue
+
+            if cds_len > longest_cds[gene]["cds_len"]:
+                longest_cds[gene]["cds_id"] = cds_id
+                longest_cds[gene]["cds_len"] = cds_len
+
+        core_cds_ids = {cds_info["cds_id"] for cds_info in longest_cds.values()}
+        return core_cds_ids
+
+    @staticmethod
     def extract_cds_id_len_mapping(diamond_results: Path) -> dict[str]:
         cds_id_len_mapping = dict()
         with diamond_results.open() as inhandle:
@@ -108,36 +168,20 @@ class GeneAssigner:
                 cds_id_len_mapping[cds_id] = cds_len
         return cds_id_len_mapping
 
-    @classmethod
-    def calculate_core_cds_ids(cls, diamond_results: Path, accession_numbers_gene_mapping: dict[str],
-                               cds_id_accession_numbers_mapping: dict[str]) -> set[str]:
-        cds_id_len_mapping = cls.extract_cds_id_len_mapping(diamond_results)
-
-        longest_cds = {gene: {"cds_id": "", "cds_len": 0} for gene in set(accession_numbers_gene_mapping.values())}
-        for cds_id, cds_len in cds_id_len_mapping.items():
-            accession_number = cds_id_accession_numbers_mapping[cds_id]
-            try:
-                gene = accession_numbers_gene_mapping[accession_number]
-            except KeyError:
-                continue
-            if cds_len > longest_cds[gene]["cds_len"]:
-                longest_cds[gene]["cds_id"] = cds_id
-                longest_cds[gene]["cds_len"] = cds_len
-
-        core_cds_ids = {cds_info["cds_id"] for cds_info in longest_cds.values()}
-        return core_cds_ids
-
     @staticmethod
     def collate_diamond_results_metadata(cds_id_accession_numbers_mapping: dict[str],
-                                       accession_numbers_gene_mapping: dict[str],
+                                       cds_id_best_gene_mapping: dict[dict[str]],
                                        core_cds_ids: set[str]) -> dict[Any]:
         diamond_results_metadata = {}
-        for cds_id, accession_number in cds_id_accession_numbers_mapping.items():
+        for cds_id, accession_numbers in cds_id_accession_numbers_mapping.items():
             try:
-                gene = accession_numbers_gene_mapping[accession_number]
+                accession_number = cds_id_best_gene_mapping[cds_id]["accession"]
+                gene = cds_id_best_gene_mapping[cds_id]["gene"]
             except KeyError:
+                accession_number = accession_numbers[0]
                 gene = ""
             core_cds = True if cds_id in core_cds_ids else ""
+
             metadata = {"accession_number": accession_number, "gene": gene, "core_cds": core_cds}
             diamond_results_metadata[cds_id] = metadata
         return diamond_results_metadata
