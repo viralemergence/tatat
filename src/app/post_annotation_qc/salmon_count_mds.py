@@ -24,6 +24,10 @@ class SalmonCountMDS:
 
         gene_counts = gene_counts[gene_counts.var(axis=1) > 0]
         gene_counts = gene_counts[gene_counts.sum(axis=1) >= 100]
+        
+        housekeeping = ["EEF1A1", "UBC", "RNA28SN1", "RN7SL1"]
+        for gene in housekeeping:
+            gene_counts = gene_counts[~gene_counts.index.str.contains(gene)]
 
         distances = pairwise_distances(gene_counts.T)
 

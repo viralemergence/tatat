@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=remi
-#SBATCH --job-name=ncbi_nt_pull
+#SBATCH --job-name=ncbi_core_nt_pull
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 #SBATCH --mail-type=ALL
@@ -20,6 +20,6 @@ singularity exec \
     --no-home \
     --env LC_ALL=C,NCBI_API_KEY=$NCBI_API_KEY \
     --bind $HOST_APP_DIR:/src/app \
-    --bind $NT_BLASTDB_DIR:/src/blastdb \
+    --bind $SCRATCH_DIR/core_nt:/src/blastdb \
     $SINGULARITY_IMAGE \
-    bash /src/app/annotation/database_prep.sh pull-nt-database
+    bash /src/app/annotation/database_prep.sh pull-core-nt-database

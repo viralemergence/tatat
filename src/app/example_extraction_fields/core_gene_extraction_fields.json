@@ -3,6 +3,7 @@
         "evigene_pass": "True"
     },
     "cds_metadata": {
-        "core_cds": "True"
+        "core_cds": "True",
+        "unambiguous_gene": "True"
     }
 }

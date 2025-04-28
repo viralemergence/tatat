@@ -3,28 +3,21 @@ from collections import defaultdict
 from csv import DictReader, DictWriter, reader
 from pathlib import Path
 from shutil import copyfileobj
-import subprocess
 from tempfile import NamedTemporaryFile
 from typing import Any
 
 class GeneAssigner:
-    def __init__(self, diamond_results: Path, accession_numbers_out: Path, cds_metadata: Path) -> None:
+    def __init__(self, diamond_results: Path, accession_gene_mapping: Path, cds_metadata: Path) -> None:
         self.diamond_results = diamond_results
-        self.accession_numbers_out = accession_numbers_out
+        self.accession_gene_mapping_path = accession_gene_mapping
         self.cds_metadata = cds_metadata
 
-    def run(self, upper: bool) -> None:
-        # Extract non redundant accession numbers for submission to NCBI
+    def run(self) -> None:
+        # Extract cds id to accession number mapping
         cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.diamond_results)
-        accession_numbers = self.extract_accession_numbers(cds_id_accession_numbers_mapping)
-        self.write_accession_numbers(self.accession_numbers_out, accession_numbers)
-        print(f"\nAccession numbers count: {len(accession_numbers)}")
 
-        # Submit accession numbers to NCBI and make mapping to gene symbols
-        accession_numbers_gene_mapping = self.submit_accession_numbers_with_ncbi_datasets(self.accession_numbers_out)
-        accession_numbers_gene_mapping = self.remove_extraneous_accession_numbers(accession_numbers_gene_mapping, accession_numbers)
-        if upper:
-            accession_numbers_gene_mapping = self.upper_case_genes(accession_numbers_gene_mapping)
+        # Extract accession numbers to gene symbols mapping
+        accession_numbers_gene_mapping = self.extract_accession_number_gene_symbol_mapping(self.accession_gene_mapping_path)
         print(len(accession_numbers_gene_mapping))
 
         # Assign best "gene" hit to cds id
@@ -36,7 +29,7 @@ class GeneAssigner:
         print(f"Core CDS count: {len(core_cds_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to CDS metadata file
-        diamond_results_metadata_fields = ["accession_number", "gene", "core_cds"]
+        diamond_results_metadata_fields = ["accession_number", "gene", "unambiguous_gene", "core_cds"]
         diamond_results_metadata = self.collate_diamond_results_metadata(cds_id_accession_numbers_mapping,
                                                                          cds_id_best_gene_mapping, core_cds_ids)
         
@@ -59,50 +52,13 @@ class GeneAssigner:
         return dict(cds_id_accession_numbers_mapping)
 
     @staticmethod
-    def extract_accession_numbers(cds_id_accession_numbers_mapping: dict[str]) -> set[str]:
-        return set().union(*cds_id_accession_numbers_mapping.values())
-
-    @staticmethod
-    def write_accession_numbers(accession_numbers_out: Path, accession_numbers: set[str]) -> None:
-        with accession_numbers_out.open("w") as outhandle:
-            for accession_number in accession_numbers:
-                outhandle.write(f"{accession_number}\n")
-
-    @staticmethod
-    def submit_accession_numbers_with_ncbi_datasets(accession_numbers_out: Path) -> dict[str]:
-        print("Starting NCBI Datasets submission\n(This may take awhile)")
-        datasets_command = ["datasets", "summary", "gene", "accession", "--inputfile", f"{accession_numbers_out}",
-                            "--report", "product", "--as-json-lines"]
-        
-        dataformat_command = ["dataformat", "tsv", "gene-product", "--elide-header", "--fields", "transcript-protein-accession,symbol"]
-
-        p1 = subprocess.Popen(datasets_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p2 = subprocess.Popen(dataformat_command, stdin=p1.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        p1.stdout.close()
-
+    def extract_accession_number_gene_symbol_mapping(accession_gene_mapping_path: Path) -> dict[str]:
         accession_numbers_gene_mapping = {}
-
-        while p2.poll() is None and (line := p2.stdout.readline()) != "":
-            gene_info = line.strip().split()
-            if len(gene_info) == 2:
-                accession_numbers_gene_mapping[gene_info[0]] = gene_info[1]
-            else:
-                pass
-        p2.wait()
-
-        if p2.poll() != 0:
-            print(p2.stderr.readlines())
-            raise Exception("Datasets submission did not complete successfully")
-        print("NCBI Submission complete")
+        with accession_gene_mapping_path.open() as inhandle:
+            for line in inhandle:
+                line = line.strip().split(",")
+                accession_numbers_gene_mapping[line[0]] = line[1]
         return accession_numbers_gene_mapping
-
-    @staticmethod
-    def remove_extraneous_accession_numbers(accession_numbers_gene_mapping: dict[str], accession_numbers: set[str]):
-        return {k: v for k, v in accession_numbers_gene_mapping.items() if k in accession_numbers}
-
-    @staticmethod
-    def upper_case_genes(accession_numbers_gene_mapping: dict[str]):
-        return {k: v.upper() for k, v in accession_numbers_gene_mapping.items()}
 
     @staticmethod
     def assign_best_gene_to_cds_ids(accession_numbers_gene_mapping: dict[str],
@@ -177,12 +133,17 @@ class GeneAssigner:
             try:
                 accession_number = cds_id_best_gene_mapping[cds_id]["accession"]
                 gene = cds_id_best_gene_mapping[cds_id]["gene"]
+                if gene.startswith("LOC") or gene.startswith("CUN"):
+                    unambiguous = False
+                else:
+                    unambiguous = True
             except KeyError:
                 accession_number = accession_numbers[0]
                 gene = ""
+                unambiguous = ""
             core_cds = True if cds_id in core_cds_ids else ""
 
-            metadata = {"accession_number": accession_number, "gene": gene, "core_cds": core_cds}
+            metadata = {"accession_number": accession_number, "gene": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             diamond_results_metadata[cds_id] = metadata
         return diamond_results_metadata
 
@@ -219,10 +180,9 @@ class GeneAssigner:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-diamond_results", type=str, required=True)
-    parser.add_argument("-accesion_numbers_out", type=str, required=True)
+    parser.add_argument("-accession_gene_mapping", type=str, required=True)
     parser.add_argument("-cds_metadata", type=str, required=True)
-    parser.add_argument("-upper", type=bool, required=False, default=True)
     args = parser.parse_args()
 
-    ga = GeneAssigner(Path(args.diamond_results), Path(args.accesion_numbers_out), Path(args.cds_metadata))
-    ga.run(args.upper)
+    ga = GeneAssigner(Path(args.diamond_results), Path(args.accession_gene_mapping), Path(args.cds_metadata))
+    ga.run()
