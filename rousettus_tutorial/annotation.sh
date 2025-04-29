@@ -77,3 +77,19 @@ singularity exec \
     -diamond_results /src/blast_hits/cds_hits.tsv \
     -accession_gene_mapping /src/accession_gene_mapping/datasets_mapping.csv \
     -cds_metadata /src/metadata/cds_metadata.csv
+
+# Extract core cds as final "core" transcriptome
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $METADATA_DIR:/src/metadata \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/evigene_cds_aa_extraction.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
+    -cds_metadata /src/metadata/cds_metadata.csv \
+    -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
+    -cds_fasta /src/transcriptome_data/cds_core.fna \
+    -add_gene_name
