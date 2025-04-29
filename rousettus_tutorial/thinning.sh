@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem=120G
+#SBATCH --mem=60G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -49,6 +49,6 @@ singularity exec \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -outdir /src/evigene_output \
     -metadata /src/metadata/transcriptome_metadata.csv \
-    -run_evigene -cpus 10 -mem 119000 -phetero 2 -prefix_column sample_uid -minaa 99 \
+    -run_evigene -cpus 10 -mem 59000 -phetero 2 -prefix_column sample_uid -minaa 99 \
     -run_metadata_appender \
     -cds_metadata /src/metadata/cds_metadata.csv

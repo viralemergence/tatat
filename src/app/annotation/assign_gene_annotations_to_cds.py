@@ -7,14 +7,14 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 class GeneAssigner:
-    def __init__(self, diamond_results: Path, accession_gene_mapping: Path, cds_metadata: Path) -> None:
-        self.diamond_results = diamond_results
+    def __init__(self, blast_results: Path, accession_gene_mapping: Path, cds_metadata: Path) -> None:
+        self.blast_results = blast_results
         self.accession_gene_mapping_path = accession_gene_mapping
         self.cds_metadata = cds_metadata
 
     def run(self) -> None:
         # Extract cds id to accession number mapping
-        cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.diamond_results)
+        cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.blast_results)
 
         # Extract accession numbers to gene symbols mapping
         accession_numbers_gene_mapping = self.extract_accession_number_gene_symbol_mapping(self.accession_gene_mapping_path)
@@ -25,27 +25,27 @@ class GeneAssigner:
         print(len(cds_id_best_gene_mapping))
 
         # Calculate "core" CDS ids as the longest CDS representing a given gene
-        core_cds_ids = self.calculate_core_cds_ids(self.diamond_results, cds_id_best_gene_mapping)
+        core_cds_ids = self.calculate_core_cds_ids(self.blast_results, cds_id_best_gene_mapping)
         print(f"Core CDS count: {len(core_cds_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to CDS metadata file
-        diamond_results_metadata_fields = ["accession_number", "gene", "unambiguous_gene", "core_cds"]
-        diamond_results_metadata = self.collate_diamond_results_metadata(cds_id_accession_numbers_mapping,
+        blast_results_metadata_fields = ["accession_number", "gene", "unambiguous_gene", "core_cds"]
+        blast_results_metadata = self.collate_blast_results_metadata(cds_id_accession_numbers_mapping,
                                                                          cds_id_best_gene_mapping, core_cds_ids)
         
         # Append new metadata to CDS metadata file
-        tmpfile_path = self.write_appended_metadata_to_tempfile(self.cds_metadata, self.diamond_results.parent,
-                                                                diamond_results_metadata, diamond_results_metadata_fields,
+        tmpfile_path = self.write_appended_metadata_to_tempfile(self.cds_metadata, self.blast_results.parent,
+                                                                blast_results_metadata, blast_results_metadata_fields,
                                                                 "cds_id")
         self.copy_file(tmpfile_path, self.cds_metadata)
         tmpfile_path.unlink()
 
     @staticmethod
-    def extract_cds_id_accession_numbers_mapping(diamond_results: Path) -> dict[list[str]]:
+    def extract_cds_id_accession_numbers_mapping(blast_results: Path) -> dict[list[str]]:
         cds_id_accession_numbers_mapping = defaultdict(list)
-        with diamond_results.open() as inhandle:
-            diamond_reader = reader(inhandle, delimiter="\t")
-            for line in diamond_reader:
+        with blast_results.open() as inhandle:
+            blast_reader = reader(inhandle, delimiter="\t")
+            for line in blast_reader:
                 cds_id = line[0]
                 accession_number = line[1]
                 cds_id_accession_numbers_mapping[cds_id].append(accession_number)
@@ -96,8 +96,8 @@ class GeneAssigner:
         return cds_id_best_gene_mapping
 
     @classmethod
-    def calculate_core_cds_ids(cls, diamond_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[str]:
-        cds_id_len_mapping = cls.extract_cds_id_len_mapping(diamond_results)
+    def calculate_core_cds_ids(cls, blast_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[str]:
+        cds_id_len_mapping = cls.extract_cds_id_len_mapping(blast_results)
 
         longest_cds = {gene: {"cds_id": "", "cds_len": 0} for gene in set(cds_info["gene"] for cds_info in cds_id_best_gene_mapping.values())}
         for cds_id, cds_len in cds_id_len_mapping.items():
@@ -114,21 +114,21 @@ class GeneAssigner:
         return core_cds_ids
 
     @staticmethod
-    def extract_cds_id_len_mapping(diamond_results: Path) -> dict[str]:
+    def extract_cds_id_len_mapping(blast_results: Path) -> dict[str]:
         cds_id_len_mapping = dict()
-        with diamond_results.open() as inhandle:
-            diamond_reader = reader(inhandle, delimiter="\t")
-            for line in diamond_reader:
+        with blast_results.open() as inhandle:
+            blast_reader = reader(inhandle, delimiter="\t")
+            for line in blast_reader:
                 cds_id = line[0]
                 cds_len = int(line[-1])
                 cds_id_len_mapping[cds_id] = cds_len
         return cds_id_len_mapping
 
     @staticmethod
-    def collate_diamond_results_metadata(cds_id_accession_numbers_mapping: dict[str],
+    def collate_blast_results_metadata(cds_id_accession_numbers_mapping: dict[str],
                                        cds_id_best_gene_mapping: dict[dict[str]],
                                        core_cds_ids: set[str]) -> dict[Any]:
-        diamond_results_metadata = {}
+        blast_results_metadata = {}
         for cds_id, accession_numbers in cds_id_accession_numbers_mapping.items():
             try:
                 accession_number = cds_id_best_gene_mapping[cds_id]["accession"]
@@ -144,8 +144,8 @@ class GeneAssigner:
             core_cds = True if cds_id in core_cds_ids else ""
 
             metadata = {"accession_number": accession_number, "gene": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
-            diamond_results_metadata[cds_id] = metadata
-        return diamond_results_metadata
+            blast_results_metadata[cds_id] = metadata
+        return blast_results_metadata
 
     @staticmethod
     def write_appended_metadata_to_tempfile(metadata_path: Path, outdir: Path,
@@ -179,10 +179,10 @@ class GeneAssigner:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-diamond_results", type=str, required=True)
+    parser.add_argument("-blast_results", type=str, required=True)
     parser.add_argument("-accession_gene_mapping", type=str, required=True)
     parser.add_argument("-cds_metadata", type=str, required=True)
     args = parser.parse_args()
 
-    ga = GeneAssigner(Path(args.diamond_results), Path(args.accession_gene_mapping), Path(args.cds_metadata))
+    ga = GeneAssigner(Path(args.blast_results), Path(args.accession_gene_mapping), Path(args.cds_metadata))
     ga.run()
