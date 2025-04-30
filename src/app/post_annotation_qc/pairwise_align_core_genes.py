@@ -3,6 +3,7 @@ from Bio.Align import PairwiseAligner, substitution_matrices # type: ignore
 from collections import defaultdict
 from copy import deepcopy
 import matplotlib.pyplot as plt # type: ignore
+from matplotlib.colors import LinearSegmentedColormap # type: ignore
 import pandas as pd # type: ignore
 from pathlib import Path
 import re
@@ -10,10 +11,11 @@ from seaborn import jointplot # type: ignore
 from typing import Iterator
 
 class PairwiseGeneAligner:
-    def __init__(self, tatat_aa_fasta: Path, ncbi_cds_fasta: Path, ncbi_aa_fasta: Path) -> None:
+    def __init__(self, tatat_aa_fasta: Path, ncbi_cds_fasta: Path, ncbi_aa_fasta: Path, outdir: Path) -> None:
         self.tatat_aa_fasta = tatat_aa_fasta
         self.ncbi_cds_fasta = ncbi_cds_fasta
         self.ncbi_aa_fasta = ncbi_aa_fasta
+        self.outdir = outdir
 
     def run(self) -> None:
         # Extract all aa sequences needed for analysis
@@ -22,7 +24,7 @@ class PairwiseGeneAligner:
         ncbi_aa_sequences = self.extract_ncbi_aa_sequences(self.ncbi_aa_fasta, longest_ncbi_genes)
 
         # Perform pairwise alignments and return as pd.Dataframe
-        print("\nStarting pairwise alignments\n(This may take awhile)")
+        print("\nStarting pairwise alignments\n(This may take a while)")
         tatat_ncbi_alignment_data = self.calculate_tatat_ncbi_alignment_data(tatat_aa_sequences, ncbi_aa_sequences)
 
         # Count the number of alignments falling into specific sequence identity bins, then convert to proportions
@@ -30,13 +32,11 @@ class PairwiseGeneAligner:
         print(bin_counts)
 
         print("\nStarting graphing")
-        outdir = Path("/src/data/ncbi_gene_comparison")
-
         # Make plot for sequence identity bin counts
-        self.plot_bin_counts(bin_counts, outdir)
+        self.plot_bin_counts(bin_counts, self.outdir)
 
         # Make bivariate histogram for gene lengths
-        self.plot_sequence_lengths(tatat_ncbi_alignment_data, outdir)
+        self.plot_sequence_lengths(tatat_ncbi_alignment_data, self.outdir)
 
     @classmethod
     def extract_tatat_aa_sequences(cls, tatat_aa_fasta: Path) -> dict[str]:
@@ -162,7 +162,10 @@ class PairwiseGeneAligner:
 
     @staticmethod
     def plot_bin_counts(bin_counts: pd.DataFrame, outdir: Path) -> None:
-        bplot = bin_counts.T.plot.bar(stacked=True)
+        cmap_colors = ["crimson", "y", "tab:green"]
+        cmap = LinearSegmentedColormap.from_list("red_to_green", cmap_colors)
+
+        bplot = bin_counts.T.plot.bar(stacked=True, cmap=cmap)
 
         for c in bplot.containers:
             labels = [round(v.get_height(),2) if v.get_height() > 0.6 else '' for v in c]
@@ -170,7 +173,8 @@ class PairwiseGeneAligner:
 
         bplot.set_ylabel("Proportion of Sequence Alignments")
         bplot.set_xlabel("Sequence Identity Denominator")
-        bplot.legend(title="Sequence Identity", bbox_to_anchor=(1.05, 1), loc="upper left")
+        handles, labels = bplot.get_legend_handles_labels()
+        bplot.legend(handles[::-1], labels[::-1], title="Sequence Identity", bbox_to_anchor=(1.05, 1), loc="upper left")
         x_labels = ["TATAT", "NCBI", "NCBI\n(80% Length\nSimilarity)"]
         bplot.set_xticklabels(x_labels, rotation=45, ha="center")
 
@@ -187,7 +191,7 @@ class PairwiseGeneAligner:
                           log_scale=True)
         joint.ax_joint.plot([100, 20_000], [100, 20_000], ls="--", color="black")
         joint.set_axis_labels("TATAT Sequence Lengths", "NCBI Sequence Lengths")
-        out_plot = outdir / "gene_lengths_joint.png"
+        out_plot = outdir / "gene_lengths_histogram.png"
         plt.savefig(out_plot)
         plt.close()
 
@@ -196,8 +200,10 @@ if __name__ == "__main__":
     parser.add_argument("-tatat_aa_fasta", type=str, required=True)
     parser.add_argument("-ncbi_cds_fasta", type=str, required=True)
     parser.add_argument("-ncbi_aa_fasta", type=str, required=True)
+    parser.add_argument("-outdir", type=str, required=True)
     args = parser.parse_args()
 
-    pga = PairwiseGeneAligner(Path(args.tatat_aa_fasta), Path(args.ncbi_cds_fasta), Path(args.ncbi_aa_fasta))
+    pga = PairwiseGeneAligner(Path(args.tatat_aa_fasta), Path(args.ncbi_cds_fasta),
+                              Path(args.ncbi_aa_fasta), Path(args.outdir))
     pga.run()
     print("Finished\n")
