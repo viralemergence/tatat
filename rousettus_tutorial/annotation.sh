@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=80G
+#SBATCH --mem=60G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -74,7 +74,7 @@ singularity exec \
     --bind $METADATA_DIR:/src/metadata \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/assign_gene_annotations_to_cds.py \
-    -diamond_results /src/blast_hits/cds_hits.tsv \
+    -blast_results /src/blast_hits/cds_hits.tsv \
     -accession_gene_mapping /src/accession_gene_mapping/datasets_mapping.csv \
     -cds_metadata /src/metadata/cds_metadata.csv
 
