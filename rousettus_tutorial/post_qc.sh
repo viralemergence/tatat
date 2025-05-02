@@ -14,9 +14,31 @@
 ENV_FILE=$1
 . $ENV_FILE
 
+mkdir $POST_QC_DIR
+mkdir $POST_QC_DIR/ncbi
 mkdir $BUSCO_DATA_DIR
 
 module load singularity
+
+# Download Rousettus cds and aa sequences for comparisons to TATAT output
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind /etc:/etc \
+    --env NCBI_API_KEY=$NCBI_API_KEY \
+    --bind $POST_QC_DIR/ncbi:/src/ncbi \
+    $SINGULARITY_IMAGE \
+    datasets download genome taxon 9407 --include cds,protein \
+    --assembly-source "RefSeq" --assembly-version "latest" \
+    --filename /src/ncbi/9407_datasets.zip
+
+# Unzip NCBI download
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $POST_QC_DIR/ncbi:/src/ncbi \
+    $SINGULARITY_IMAGE \
+    unzip /src/ncbi/9407_datasets.zip -d /src/ncbi/
 
 # To calculate intersection of TATAT core genes with NCBI genes
 singularity exec \
