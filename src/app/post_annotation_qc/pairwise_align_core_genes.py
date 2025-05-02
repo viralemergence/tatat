@@ -4,28 +4,36 @@ from collections import defaultdict
 from copy import deepcopy
 import matplotlib.pyplot as plt # type: ignore
 from matplotlib.colors import LinearSegmentedColormap # type: ignore
+from multiprocessing import Pool
 import pandas as pd # type: ignore
 from pathlib import Path
 import re
 from seaborn import jointplot # type: ignore
-from typing import Iterator
+from typing import Any, Iterator, Union
 
 class PairwiseGeneAligner:
-    def __init__(self, tatat_aa_fasta: Path, ncbi_cds_fasta: Path, ncbi_aa_fasta: Path, outdir: Path) -> None:
+    def __init__(self, tatat_cds_fasta: Path, tatat_aa_fasta: Path,
+                 ncbi_cds_fasta: Path, ncbi_aa_fasta: Path,
+                 outdir: Path) -> None:
+        self.tatat_cds_fasta = tatat_cds_fasta
         self.tatat_aa_fasta = tatat_aa_fasta
         self.ncbi_cds_fasta = ncbi_cds_fasta
         self.ncbi_aa_fasta = ncbi_aa_fasta
         self.outdir = outdir
 
-    def run(self) -> None:
+    def run(self, cpus: int, alignment_type: str="nucleotide") -> None:
         # Extract all aa sequences needed for analysis
-        tatat_aa_sequences = self.extract_tatat_aa_sequences(self.tatat_aa_fasta)
-        longest_ncbi_genes = self.extract_longest_ncbi_genes(self.ncbi_cds_fasta)
-        ncbi_aa_sequences = self.extract_ncbi_aa_sequences(self.ncbi_aa_fasta, longest_ncbi_genes)
+        longest_ncbi_genes = self.extract_longest_ncbi_genes(self.ncbi_cds_fasta, alignment_type)
+        if alignment_type == "protein":
+            tatat_sequences = self.extract_tatat_sequences(self.tatat_aa_fasta)
+            ncbi_sequences = self.extract_ncbi_aa_sequences(self.ncbi_aa_fasta, longest_ncbi_genes)
+        if alignment_type == "nucleotide":
+            tatat_sequences = self.extract_tatat_sequences(self.tatat_cds_fasta)
+            ncbi_sequences = self.extract_ncbi_cds_sequences(self.ncbi_cds_fasta, longest_ncbi_genes)
 
         # Perform pairwise alignments and return as pd.Dataframe
         print("\nStarting pairwise alignments\n(This may take a while)")
-        tatat_ncbi_alignment_data = self.calculate_tatat_ncbi_alignment_data(tatat_aa_sequences, ncbi_aa_sequences)
+        tatat_ncbi_alignment_data = self.pool_calculate_alignment_data(tatat_sequences, ncbi_sequences, alignment_type, cpus)
 
         # Count the number of alignments falling into specific sequence identity bins, then convert to proportions
         bin_counts = self.bin_sequence_identities(tatat_ncbi_alignment_data)
@@ -39,12 +47,12 @@ class PairwiseGeneAligner:
         self.plot_sequence_lengths(tatat_ncbi_alignment_data, self.outdir)
 
     @classmethod
-    def extract_tatat_aa_sequences(cls, tatat_aa_fasta: Path) -> dict[str]:
+    def extract_tatat_sequences(cls, tatat_aa_fasta: Path) -> dict[str]:
         return {fasta_seq[0].split(";")[1]: "".join(fasta_seq[1:]).replace("*", "")
                 for fasta_seq in cls.fasta_chunker(tatat_aa_fasta)}
 
     @classmethod
-    def extract_longest_ncbi_genes(cls, ncbi_cds_fasta: Path) -> dict[str]:
+    def extract_longest_ncbi_genes(cls, ncbi_cds_fasta: Path, accession_type: str) -> dict[str]:
         longest_genes = defaultdict(lambda: defaultdict(int))
 
         gene_pattern = r"\[gene=(.*?)\]"
@@ -53,6 +61,7 @@ class PairwiseGeneAligner:
         for fasta_seq in cls.fasta_chunker(ncbi_cds_fasta):
             header = fasta_seq[0]
             gene = re.search(gene_pattern, header).group()[6:-1]
+            nucleotide_accession = header.split(" ")[0].split("|")[1]
             try:
                 protein_accession = re.search(protein_accession_pattern, header).group()[12:-1]
             except AttributeError:
@@ -62,10 +71,15 @@ class PairwiseGeneAligner:
             longest_gene_len = longest_genes[gene]["length"]
             if sequence_len > longest_gene_len:
                 new_data = {"length": sequence_len,
+                            "nucleotide_accession": nucleotide_accession,
                             "protein_accession": protein_accession}
                 longest_genes[gene].update(new_data)
 
-        return {data["protein_accession"]: gene for gene, data in longest_genes.items()}
+        if accession_type == "protein":
+            return {data["protein_accession"]: gene for gene, data in longest_genes.items()}
+
+        if accession_type == "nucleotide":
+            return {data["nucleotide_accession"]: gene for gene, data in longest_genes.items()}
             
     @staticmethod
     def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
@@ -102,53 +116,100 @@ class PairwiseGeneAligner:
         return aa_sequences
 
     @classmethod
-    def calculate_tatat_ncbi_alignment_data (cls, tatat_aa_sequences: dict[str], ncbi_aa_sequences: dict[str]) -> pd.DataFrame:
-        tatat_ncbi_alignment_data = list()
-        baseline_aligner = cls.set_baseline_aligner()
+    def extract_ncbi_cds_sequences(cls, ncbi_cds_fasta: Path, ncbi_genes: dict[str]) -> dict[str]:
+        cds_sequences = dict()
 
-        for tatat_gene, tatat_seq in tatat_aa_sequences.items():
-            if tatat_gene.startswith("LOC"):
-                continue
+        for fasta_seq in cls.fasta_chunker(ncbi_cds_fasta):
+            header = fasta_seq[0]
+            nuc_accession = header.split(" ")[0].split("|")[1]
             try:
-                ncbi_seq = ncbi_aa_sequences[tatat_gene]
+                gene = ncbi_genes[nuc_accession]
             except KeyError:
                 continue
+            cds = "".join(fasta_seq[1:])
+            cds_sequences[gene] = cds
+        return cds_sequences
 
-            aligner = deepcopy(baseline_aligner)
-            try:
-                alignments = aligner.align(tatat_seq, ncbi_seq)
-            except ValueError:
-                continue
+    @classmethod
+    def pool_calculate_alignment_data(cls, tatat_sequences: dict[str], ncbi_sequences: dict[Any],
+                                 alignment_type: str, cpus: int) -> pd.DataFrame:
+        print(f"CPUS: {cpus}")
 
-            alignment = alignments[0]
+        if alignment_type == "protein":
+            baseline_aligner = cls.set_baseline_aa_aligner()
+        if alignment_type == "nucleotide":
+            baseline_aligner = cls.set_baseline_nuc_aligner()
 
-            match = 0
-            for aa_aligned in zip(alignment[0], alignment[1]):
-                if aa_aligned[0] == aa_aligned[1]:
-                    match += 1
+        input_data = cls.extract_alignment_input_data(tatat_sequences, ncbi_sequences, baseline_aligner)
+        with Pool(processes=cpus) as pool:
+            results = pool.map(cls.calculate_alignment_data_proxy, input_data)
+            pool.close()
+            pool.join()
 
-            len_similarity = round(len(tatat_seq)/ len(ncbi_seq), 2)
-            if len_similarity > 0.8:
-                ncbi_match_close_len = round((match/len(ncbi_seq))*100, 2)
-            else:
-                ncbi_match_close_len = None
-
-            data = {"gene": tatat_gene, "match_count": match,
-                    "tatat_len": len(tatat_seq), "ncbi_len": len(ncbi_seq),
-                    "tatat_match": round((match/len(tatat_seq))*100, 2),
-                    "ncbi_match": round((match/len(ncbi_seq))*100, 2),
-                    "ncbi_match_close_len": ncbi_match_close_len
-                    }
-            tatat_ncbi_alignment_data.append(data)
-        return pd.DataFrame(tatat_ncbi_alignment_data)
+        output_data = [result for result in results if result is not None]
+        return pd.DataFrame(output_data)
 
     @staticmethod
-    def set_baseline_aligner() -> PairwiseAligner:
+    def set_baseline_aa_aligner() -> PairwiseAligner:
         aligner = PairwiseAligner()
         aligner.open_gap_score = -10
         aligner.extend_gap_score = -0.5
         aligner.substitution_matrix = substitution_matrices.load("BLOSUM62")
         return aligner
+
+    @staticmethod
+    def set_baseline_nuc_aligner() -> PairwiseAligner:
+        return PairwiseAligner(scoring="blastn")
+
+    @staticmethod
+    def extract_alignment_input_data(tatat_sequences: dict[str], ncbi_sequences: dict[str],
+                                     baseline_aligner: PairwiseAligner) -> list[dict[Any]]:
+        input_data = []
+        for tatat_gene, tatat_seq in tatat_sequences.items():
+            if tatat_gene.startswith("LOC"):
+                continue
+            try:
+                ncbi_seq = ncbi_sequences[tatat_gene]
+            except KeyError:
+                continue
+            data = {"gene": tatat_gene,
+                    "aligner": deepcopy(baseline_aligner),
+                    "tatat_seq": tatat_seq,
+                    "ncbi_seq": ncbi_seq}
+            input_data.append(data)
+        return input_data
+
+    @classmethod
+    def calculate_alignment_data_proxy(cls, input_data: dict[Any]) -> Union[dict[Any], None]:
+        return cls.calculate_alignment_data(**input_data)
+
+    @staticmethod
+    def calculate_alignment_data(gene: str, aligner: PairwiseAligner, tatat_seq: str, ncbi_seq: str) -> Union[dict[Any], None]:
+        try:
+            alignments = aligner.align(tatat_seq, ncbi_seq)
+        except ValueError:
+            return None
+
+        alignment = alignments[0]
+
+        match = 0
+        for position_aligned in zip(alignment[0], alignment[1]):
+            if position_aligned[0] == position_aligned[1]:
+                match += 1
+
+        len_similarity = round(len(tatat_seq)/ len(ncbi_seq), 2)
+        if len_similarity > 0.8:
+            ncbi_match_close_len = round((match/len(ncbi_seq))*100, 2)
+        else:
+            ncbi_match_close_len = None
+
+        data = {"gene": gene, "match_count": match,
+                "tatat_len": len(tatat_seq), "ncbi_len": len(ncbi_seq),
+                "tatat_match": round((match/len(tatat_seq))*100, 2),
+                "ncbi_match": round((match/len(ncbi_seq))*100, 2),
+                "ncbi_match_close_len": ncbi_match_close_len
+                }
+        return data
 
     @staticmethod
     def bin_sequence_identities(tatat_ncbi_alignment_data: pd.DataFrame) -> pd.DataFrame:
@@ -189,7 +250,7 @@ class PairwiseGeneAligner:
                           x="tatat_len", y="ncbi_len", kind="hist",
                           bins=bin_number, marginal_kws={"bins": bin_number},
                           log_scale=True)
-        joint.ax_joint.plot([100, 20_000], [100, 20_000], ls="--", color="black")
+        joint.ax_joint.plot([300, 60_000], [300, 60_000], ls="--", color="black")
         joint.set_axis_labels("TATAT Sequence Lengths", "NCBI Sequence Lengths")
         out_plot = outdir / "gene_lengths_histogram.png"
         plt.savefig(out_plot)
@@ -197,13 +258,16 @@ class PairwiseGeneAligner:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    parser.add_argument("-tatat_cds_fasta", type=str, required=True)
     parser.add_argument("-tatat_aa_fasta", type=str, required=True)
     parser.add_argument("-ncbi_cds_fasta", type=str, required=True)
     parser.add_argument("-ncbi_aa_fasta", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
+    parser.add_argument("-cpus", type=int, required=False, default=1)
     args = parser.parse_args()
 
-    pga = PairwiseGeneAligner(Path(args.tatat_aa_fasta), Path(args.ncbi_cds_fasta),
-                              Path(args.ncbi_aa_fasta), Path(args.outdir))
-    pga.run()
+    pga = PairwiseGeneAligner(Path(args.tatat_cds_fasta), Path(args.tatat_aa_fasta),
+                              Path(args.ncbi_cds_fasta), Path(args.ncbi_aa_fasta),
+                              Path(args.outdir))
+    pga.run(args.cpus)
     print("Finished\n")
