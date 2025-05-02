@@ -8,10 +8,11 @@ from seaborn import violinplot # type: ignore
 from typing import Any
 
 class ExpressionManager:
-    def __init__(self, ncbi_genes_path: Path, tissue_expression_path: Path, missing_genes_path: Path) -> None:
+    def __init__(self, ncbi_genes_path: Path, tissue_expression_path: Path, missing_genes_path: Path, outdir: Path) -> None:
         self.ncbi_genes_path = ncbi_genes_path
         self.tissue_expression_path = tissue_expression_path
         self.missing_genes_path = missing_genes_path
+        self.outdir = outdir
 
     def run(self) -> None:
         # Prepare data per gene with highest expression level and corresponding tissue
@@ -24,19 +25,18 @@ class ExpressionManager:
 
         # Calculate count of missing genes per tissue and make pie chart
         top_tissue_count = self.count_top_tissues(top_tissue_per_gene)
-        self.write_top_tissue_count(self.tissue_expression_path.parent, top_tissue_count)
-        self.generate_pie_chart(top_tissue_count, self.tissue_expression_path.parent)
+        self.write_top_tissue_count(self.outdir, top_tissue_count)
+        self.generate_pie_chart(top_tissue_count, self.outdir)
 
         # Generate violin plot of missing genes for testes
-        self.generate_violin_plot(top_tissue_per_gene, self.tissue_expression_path.parent)
+        self.generate_violin_plot(top_tissue_per_gene, self.outdir)
 
     @staticmethod
     def extract_ncbi_genes(data_path: Path) -> set[str]:
         core_genes = set()
         with data_path.open() as inhandle:
-            data_reader = DictReader(inhandle, delimiter="\t")
-            for data in data_reader:
-                core_genes.add(data["Symbol"])
+            for line in inhandle:
+                core_genes.add(line.strip())
         return core_genes
 
     @staticmethod
@@ -110,7 +110,7 @@ class ExpressionManager:
 
         plt.pie(counts, labels=labels, explode=explode, autopct=autopct, pctdistance=0.75)
         plt.title("Missing Genes By Tissue")
-        out_plot = outdir / "pie.png"
+        out_plot = outdir / "missing_genes_by_tissue_pie.png"
         plt.savefig(out_plot, bbox_inches="tight")
         plt.close()
 
@@ -128,7 +128,7 @@ class ExpressionManager:
 
         vplot = violinplot(data=top_tissue_per_gene_df, x="Tissue", y="Expression", hue="Missing Genes", log_scale=True, bw_adjust=.5)
         vplot.axhline(y=medians[False], color="lightgreen", linestyle="--")
-        out_plot = outdir / "violin.png"
+        out_plot = outdir / "missing_genes_expression_violin.png"
         plt.savefig(out_plot)
 
 if __name__ == "__main__":
@@ -136,8 +136,10 @@ if __name__ == "__main__":
     parser.add_argument("-ncbi_genes_path", type=str, required=True)
     parser.add_argument("-tissue_expression_path", type=str, required=True)
     parser.add_argument("-missing_genes_path", type=str, required=True)
+    parser.add_argument("-outdir", type=str, required=True)
     args = parser.parse_args()
 
-    em = ExpressionManager(Path(args.ncbi_genes_path), Path(args.tissue_expression_path), Path(args.missing_genes_path))
+    em = ExpressionManager(Path(args.ncbi_genes_path), Path(args.tissue_expression_path), Path(args.missing_genes_path),
+                           Path(args.outdir))
     print()
     em.run()

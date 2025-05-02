@@ -12,19 +12,18 @@ from seaborn import jointplot # type: ignore
 from typing import Any, Iterator, Union
 
 class PairwiseGeneAligner:
-    def __init__(self, tatat_cds_fasta: Path, tatat_aa_fasta: Path,
-                 ncbi_cds_fasta: Path, ncbi_aa_fasta: Path,
+    def __init__(self, tatat_cds_fasta: Path,
+                 ncbi_cds_fasta: Path,
                  outdir: Path) -> None:
         self.tatat_cds_fasta = tatat_cds_fasta
-        self.tatat_aa_fasta = tatat_aa_fasta
         self.ncbi_cds_fasta = ncbi_cds_fasta
-        self.ncbi_aa_fasta = ncbi_aa_fasta
         self.outdir = outdir
 
     def run(self, cpus: int, alignment_type: str="nucleotide") -> None:
         # Extract all aa sequences needed for analysis
         longest_ncbi_genes = self.extract_longest_ncbi_genes(self.ncbi_cds_fasta, alignment_type)
         if alignment_type == "protein":
+            # NOTE: If we want to use protein sequences in the future, need to re-write variable usage
             tatat_sequences = self.extract_tatat_sequences(self.tatat_aa_fasta)
             ncbi_sequences = self.extract_ncbi_aa_sequences(self.ncbi_aa_fasta, longest_ncbi_genes)
         if alignment_type == "nucleotide":
@@ -52,7 +51,7 @@ class PairwiseGeneAligner:
                 for fasta_seq in cls.fasta_chunker(tatat_aa_fasta)}
 
     @classmethod
-    def extract_longest_ncbi_genes(cls, ncbi_cds_fasta: Path, accession_type: str) -> dict[str]:
+    def extract_longest_ncbi_genes(cls, ncbi_cds_fasta: Path, alignment_type: str) -> dict[str]:
         longest_genes = defaultdict(lambda: defaultdict(int))
 
         gene_pattern = r"\[gene=(.*?)\]"
@@ -75,10 +74,10 @@ class PairwiseGeneAligner:
                             "protein_accession": protein_accession}
                 longest_genes[gene].update(new_data)
 
-        if accession_type == "protein":
+        if alignment_type == "protein":
             return {data["protein_accession"]: gene for gene, data in longest_genes.items()}
 
-        if accession_type == "nucleotide":
+        if alignment_type == "nucleotide":
             return {data["nucleotide_accession"]: gene for gene, data in longest_genes.items()}
             
     @staticmethod
@@ -259,15 +258,13 @@ class PairwiseGeneAligner:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-tatat_cds_fasta", type=str, required=True)
-    parser.add_argument("-tatat_aa_fasta", type=str, required=True)
     parser.add_argument("-ncbi_cds_fasta", type=str, required=True)
-    parser.add_argument("-ncbi_aa_fasta", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
     parser.add_argument("-cpus", type=int, required=False, default=1)
     args = parser.parse_args()
 
-    pga = PairwiseGeneAligner(Path(args.tatat_cds_fasta), Path(args.tatat_aa_fasta),
-                              Path(args.ncbi_cds_fasta), Path(args.ncbi_aa_fasta),
+    pga = PairwiseGeneAligner(Path(args.tatat_cds_fasta),
+                              Path(args.ncbi_cds_fasta),
                               Path(args.outdir))
     pga.run(args.cpus)
     print("Finished\n")

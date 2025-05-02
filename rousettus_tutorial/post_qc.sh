@@ -16,6 +16,8 @@ ENV_FILE=$1
 
 mkdir $POST_QC_DIR
 mkdir $POST_QC_DIR/ncbi
+mkdir $POST_QC_DIR/gene_comparison
+mkdir $POST_QC_DIR/salmon_index
 mkdir $BUSCO_DATA_DIR
 
 module load singularity
@@ -40,30 +42,73 @@ singularity exec \
     $SINGULARITY_IMAGE \
     unzip /src/ncbi/9407_datasets.zip -d /src/ncbi/
 
+# Extract NCBI genes
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $POST_QC_DIR/ncbi:/src/ncbi \
+    --bind $POST_QC_DIR/ncbi/ncbi_dataset/data/GCF_014176215.1:/src/cds \
+    $SINGULARITY_IMAGE \
+    python3 /src/app/post_annotation_qc/extract_ncbi_genes.py \
+    -ncbi_cds_fasta /src/cds/cds_from_genomic.fna \
+    -outpath /src/ncbi/9407_ncbi_genes.txt
+
 # To calculate intersection of TATAT core genes with NCBI genes
 singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $DATA_DIR:/src/data \
+    --bind $METADATA_DIR:/src/metadata \
+    --bind $POST_QC_DIR/ncbi:/src/ncbi \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/intersect_core_genes.py \
-    -cds_metadata /src/data/metadata/cds_metadata.csv \
-    -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt
+    -cds_metadata /src/metadata/cds_metadata.csv \
+    -ncbi_genes_path /src/ncbi/9407_ncbi_genes.txt \
+    -outdir /src/gene_comparison
+
+# Download human expression data
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind /etc:/etc \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
+    $SINGULARITY_IMAGE \
+    wget https://storage.googleapis.com/adult-gtex/bulk-gex/v10/rna-seq/GTEx_Analysis_v10_RNASeQCv2.4.2_gene_median_tpm.gct.gz \
+    -O /src/gene_comparison/human_tissue_expression.tsv.gz
+
+# Decompress human expression data
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
+    $SINGULARITY_IMAGE \
+    gzip -d /src/gene_comparison/human_tissue_expression.tsv.gz
+
+# Remove human expression data extraneous header
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
+    $SINGULARITY_IMAGE \
+    sed -i "1,2d" /src/gene_comparison/human_tissue_expression.tsv
 
 # To examine TATAT core genes in relation to human gene expression
 singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $DATA_DIR:/src/data \
+    --bind $POST_QC_DIR/ncbi:/src/ncbi \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/process_human_tissue_expression.py \
-    -ncbi_genes_path /src/data/ncbi_gene_comparison/ncbi_gene_results_9407.txt \
-    -tissue_expression_path /src/data/ncbi_gene_comparison/human_tissue_expression.tsv \
-    -missing_genes_path /src/data/ncbi_gene_comparison/missing_ncbi_genes.txt
+    -ncbi_genes_path /src/ncbi/9407_ncbi_genes.txt \
+    -tissue_expression_path /src/gene_comparison/human_tissue_expression.tsv \
+    -missing_genes_path /src/gene_comparison/missing_ncbi_genes.txt \
+    -outdir /src/gene_comparison
 
-# Extract TATAT core aa sequences for pairwise alignments to NCBI aa seqs
+# Extract TATAT core cds sequences for pairwise alignments to NCBI cds seqs
 singularity exec \
     --pwd /src \
     --no-home \
@@ -76,7 +121,7 @@ singularity exec \
     -transcript_metadata /src/metadata/transcriptome_metadata.csv \
     -cds_metadata /src/metadata/cds_metadata.csv \
     -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
-    -aa_fasta /src/transcriptome_data/aa_core.faa -add_gene_name
+    -cds_fasta /src/transcriptome_data/cds_core.fna -add_gene_name
 
 # Perform pairwise alignments of TATAT core genes to NCBI genes
 singularity exec \
@@ -84,22 +129,20 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $DATA_DIR/ncbi_datasets_download/ncbi_dataset/data/GCF_014176215.1:/src/data/9407_data \
-    --bind $DATA_DIR/ncbi_gene_comparison:/src/data/ncbi_gene_comparison \
+    --bind $POST_QC_DIR/ncbi/ncbi_dataset/data/GCF_014176215.1:/src/cds \
+    --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
     python3 /src/app/post_annotation_qc/pairwise_align_core_genes.py \
     -tatat_cds_fasta /src/transcriptome_data/cds_core.fna \
-    -tatat_aa_fasta /src/transcriptome_data/aa_core.faa \
-    -ncbi_cds_fasta /src/data/9407_data/cds_from_genomic.fna \
-    -ncbi_aa_fasta /src/data/9407_data/protein.faa \
-    -outdir /src/data/ncbi_gene_comparison -cpus 10
+    -ncbi_cds_fasta /src/cds/cds_from_genomic.fna \
+    -outdir /src/gene_comparison -cpus 10
 
 # Index core genes with salmon
 singularity exec \
     --pwd /src \
     --no-home \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $DATA_DIR/salmon_index:/src/salmon_index \
+    --bind $POST_QC_DIR/salmon_index:/src/salmon_index \
     $SINGULARITY_IMAGE \
     salmon index -t /src/transcriptome_data/cds_core.fna \
     -i /src/salmon_index/rousettus_core -p 10
@@ -113,7 +156,7 @@ singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $DATA_DIR:/src/data \
+    --bind $POST_QC_DIR:/src/data \
     --bind $SALMON_COUNTS_COLLATED_DIR:/src/salmon_counts_collated \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/salmon_count_collation.py \
@@ -125,11 +168,12 @@ singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $DATA_DIR:/src/data \
+    --bind $POST_QC_DIR:/src/data \
+    --bind $METADATA_DIR:/src/metadata \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/salmon_count_mds.py \
     -counts /src/data/collated_salmon_counts.csv \
-    -metadata /src/data/metadata/sample_metadata.csv \
+    -metadata /src/metadata/sample_metadata.csv \
     -outdir /src/data
 
 # Extract TATAT core aa sequences for BUSCO

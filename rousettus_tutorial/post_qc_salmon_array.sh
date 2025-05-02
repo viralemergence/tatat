@@ -34,7 +34,7 @@ singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $DATA_DIR/salmon_index:/src/salmon_index \
+    --bind $POST_QC_DIR/salmon_index:/src/salmon_index \
     --bind $FASTQ_TRIMMED_DIR:/src/fastq_trimmed \
     --bind $SALMON_COUNTS_DIR:/src/salmon_counts \
     --bind $SALMON_COUNTS_COLLATED_DIR:/src/salmon_counts_collated \
