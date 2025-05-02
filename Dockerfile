@@ -2,6 +2,9 @@ FROM ubuntu:22.04
 
 WORKDIR /src
 
+# Copy the app directory which contains the scripts necessary to run TATAT
+COPY ./src/app /src/app
+
 # Copy the tools directory which contains the Exonerate compiled binary
 COPY ./src/tools /src/tools
 
@@ -12,7 +15,8 @@ RUN apt-get update \
     && apt-get install -y wget \
     && apt-get install build-essential -y \
     && apt install python3 -y \
-    && apt install python3-pip -y
+    && apt install python3-pip -y \
+    $$ unzip
 
 # Install SRA toolkit
 RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/3.1.1/sratoolkit.3.1.1-ubuntu64.tar.gz -P /src/tools \
