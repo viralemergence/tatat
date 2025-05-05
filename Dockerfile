@@ -134,3 +134,6 @@ ENV PATH="/src/tools/salmon-latest_linux_x86_64/bin:$PATH"
 
 # Install sklearn for post analysis
 RUN pip install scikit-learn==1.6.1
+
+# Install sqlite for metadata storage
+RUN apt install -y sqlite3 libsqlite3-dev
