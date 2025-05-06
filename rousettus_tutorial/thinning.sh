@@ -18,19 +18,19 @@ mkdir $EVIGENE_OUTPUT_DIR
 
 module load singularity
 
-# To merge assemblies into single file and generate corresponding metadata table
+# To merge assemblies into single file and generate corresponding sqlite metadata table (called "transcripts")
 singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/merge_fastas_and_set_metadata.py \
     -assembly_fasta_dir /src/data/collated \
     -merged_path /src/transcriptome_data/raw_transcriptome.fna \
-    -metadata_path /src/metadata/transcriptome_metadata.csv
+    -sqlite_db /src/sqlite_db/tatat.db
 
 # Use evigene to calculate candidate cds regions in assemblies,
 # classify them as coding, noncoding, etc.,
