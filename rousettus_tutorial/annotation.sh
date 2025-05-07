@@ -25,13 +25,12 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/evigene_cds_aa_extraction.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
-    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv \
-    -extraction_fields /src/app/example_extraction_fields/cds_for_blastn_extraction_fields.json \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/cds_for_blastn_sql_queries.json \
     -cds_fasta /src/transcriptome_data/cds.fna
 
 # Perform blastn search with candidate cds as queries
