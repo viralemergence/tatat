@@ -15,6 +15,7 @@ class DeNovoAssemblyManager:
         with sqlite3.connect(self.sqlite_db) as connection:
             self.create_transcripts_table(connection)
             self.insert_into_transcripts_table(connection, transcript_metadata)
+            self.create_cds_table(connection)
 
     @classmethod
     def merge_fastas_and_extract_metadata(cls, assembly_fasta_dir: Path, merged_path: Path) -> list[tuple[Any]]:
@@ -84,6 +85,21 @@ class DeNovoAssemblyManager:
         sql_statement = '''INSERT INTO transcripts VALUES (?,?,?)'''
         cursor.executemany(sql_statement, transcript_metadata)
         connection.commit()
+
+    @staticmethod
+    def create_cds_table(connection: sqlite3.Connection) -> None:
+            cursor = connection.cursor()
+            cursor.execute("DROP TABLE IF EXISTS cds")
+            cursor.execute('''CREATE TABLE cds
+                           (uid INTEGER NOT NULL PRIMARY KEY,
+                           transcript_uid INTEGER NOT NULL,
+                           evigene_class TEXT NOT NULL,
+                           strand TEXT NOT NULL,
+                           start INTEGER NOT NULL,
+                           end INTEGER NOT NULL,
+                           length INTEGER NOT NULL
+                           )''')
+            connection.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser()

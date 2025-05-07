@@ -18,7 +18,9 @@ mkdir $EVIGENE_OUTPUT_DIR
 
 module load singularity
 
-# To merge assemblies into single file and generate corresponding sqlite metadata table (called "transcripts")
+# To merge assemblies into single file,
+# generate corresponding sqlite metadata table (called "transcripts"),
+# as well as an empty sqlite metadata table "cds"
 singularity exec \
     --pwd /src \
     --no-home \
@@ -34,21 +36,19 @@ singularity exec \
 
 # Use evigene to calculate candidate cds regions in assemblies,
 # classify them as coding, noncoding, etc.,
-# and append this information to the transcriptome metadata table
-# and new cds metadata table
+# and update the sqlite tables with this information
 singularity exec \
     --pwd /src \
     --no-home \
     --env LC_ALL=C \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $EVIGENE_OUTPUT_DIR:/src/evigene_output \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/evigene_orchestration.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -outdir /src/evigene_output \
-    -metadata /src/metadata/transcriptome_metadata.csv \
+    -sqlite_db /src/sqlite_db/tatat.db \
     -run_evigene -cpus 10 -mem 59000 -phetero 2 -prefix_column sample_uid -minaa 99 \
-    -run_metadata_appender \
-    -cds_metadata /src/metadata/cds_metadata.csv
+    -run_transcript_metadata_appender -run_cds_and_metadata

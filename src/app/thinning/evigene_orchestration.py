@@ -1,12 +1,11 @@
 from argparse import ArgumentParser
 from collections import defaultdict
 from contextlib import contextmanager
-from csv import DictReader, DictWriter
 from os import chdir, environ, getcwd
 from pathlib import Path
-from shutil import copyfileobj
+import sqlite3
 import subprocess
-from tempfile import mkdtemp, NamedTemporaryFile
+from tempfile import mkdtemp
 from typing import Any, Union
 
 @contextmanager
@@ -19,28 +18,25 @@ def temporarily_change_working_directory(new_directory: Path):
         chdir(starting_directory)
 
 class PrefixedFastaManager:
-    def __init__(self, assembly_fasta: Path, outdir: Path, prefix_column: str, metadata: Path) -> None:
+    def __init__(self, assembly_fasta: Path, outdir: Path, prefix_column: str, sqlite_db: Path) -> None:
         self.assembly_fasta = assembly_fasta
         self.outdir = outdir
         self.prefix_column = prefix_column
-        self.metadata = metadata
+        self.sqlite_db = sqlite_db
 
     def run(self) -> Path:
-        sequence_prefix_mapping = self.extract_sequence_prefix_mapping(self.prefix_column, self.metadata)
+        sequence_prefix_mapping = self.extract_sequence_prefix_mapping(self.prefix_column, self.sqlite_db)
         tmp_prefixed_fasta = self.write_temporary_prefixed_fasta(self.assembly_fasta, self.outdir, sequence_prefix_mapping)
         return tmp_prefixed_fasta
 
     @staticmethod
-    def extract_sequence_prefix_mapping(prefix_column: str, metadata: Path) -> dict[str]:
+    def extract_sequence_prefix_mapping(prefix_column: str, sqlite_db: Path) -> dict[str]:
         print("\nExtracting sequence id to prefix mapping")
-        sequence_prefix_mapping = {}
-        with metadata.open() as inhandle:
-            reader = DictReader(inhandle)
-            for data in reader:
-                sequence_id = data["sequence_id"]
-                sequence_prefix = data[prefix_column]
-                sequence_prefix_mapping[sequence_id] = sequence_prefix
-        return sequence_prefix_mapping
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = f"SELECT uid,{prefix_column} FROM transcripts"
+            cursor.execute(sql_query)
+            return {str(row[0]): row[1] for row in cursor.fetchall()}
     
     @staticmethod
     def write_temporary_prefixed_fasta(assembly_fasta: Path, outdir: Path, sequence_prefix_mapping: dict[str]) -> Path:
@@ -55,7 +51,7 @@ class PrefixedFastaManager:
                     continue
                 sequence_id = line[1:]
                 prefix = sequence_prefix_mapping[sequence_id]
-                new_header = ">" + "_".join([prefix, "prefix", sequence_id]) # TODO: REMOVE SEQ!
+                new_header = ">" + "_".join([prefix, "prefix", sequence_id])
                 outhandle.write(new_header + "\n")
         return outfile
 
@@ -113,13 +109,17 @@ class EvigeneManager:
             raise Exception("Evigene (tr2aacds.pl) did not complete successfully")
         
     # Append evigene assembly classifier output to metadata
-    def run_metadata_appender(self, metadata_path: Path) -> None:
+    def run_metadata_appender(self, sqlite_db: Path) -> None:
         transcript_paths = self.set_transcript_paths(self.outdir, self.assembly_fasta)
         transcript_classes = self.extract_transcript_classes(transcript_paths)
 
-        tmpfile_path = self.write_appended_metadata_to_tempfile(transcript_classes, metadata_path, self.outdir)
-        self.copy_file(tmpfile_path, metadata_path)
-        tmpfile_path.unlink()
+        with sqlite3.connect(sqlite_db) as connection:
+            try:
+                self.add_evigene_columns_to_transcripts_table(connection)
+            except sqlite3.OperationalError as e:
+                print("Skipping add columns step. Error detected:")
+                print(e)
+            self.update_transcripts_table_with_evigene_info(connection, transcript_classes)
 
     @classmethod
     def set_transcript_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
@@ -161,7 +161,7 @@ class EvigeneManager:
                         # are wrong, so the file is still processed
                         transcript_class = ""
                         okay_drop_flag = ""
-                    evigene_pass = True if okay_drop_flag == "okay" else False
+                    evigene_pass = 1 if okay_drop_flag == "okay" else 0
 
                     transcript_classes[sequence_id] = {"transcript_class": transcript_class,
                                                     "evigene_pass": evigene_pass
@@ -169,49 +169,36 @@ class EvigeneManager:
         return transcript_classes
 
     @staticmethod
-    def write_appended_metadata_to_tempfile(transcript_classes: defaultdict[dict[Any]], metadata_path: Path, outdir: Path) -> Path:
-        print("Starting to write to tmpfile\n(This may take a moment)")
-        new_fields = list(transcript_classes[next(iter(transcript_classes))].keys())
-
-        with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
-            reader = DictReader(inhandle)
-            write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
-
-            writer = DictWriter(tmpfile, fieldnames=write_field_names)
-            writer.writeheader()
-            for data in reader:
-                sequence_id = data["sequence_id"]
-                try:
-                    transcript_class = transcript_classes[sequence_id]
-                    data.update(transcript_class)
-                except KeyError:
-                    print(f"Key missing: {sequence_id}")
-                writer.writerow(data)
-        return Path(tmpfile.name)
+    def add_evigene_columns_to_transcripts_table(connection: sqlite3.Connection) -> None:
+        cursor = connection.cursor()
+        cursor.execute(f"ALTER TABLE transcripts ADD COLUMN transcript_class TEXT")
+        cursor.execute(f"ALTER TABLE transcripts ADD COLUMN evigene_pass INTEGER")
+        connection.commit()
 
     @staticmethod
-    def copy_file(infile_path: Path, outfile_path: Path) -> None:
-        print("Starting to copy tmpfile to metadata file")
-        with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
-            copyfileobj(inhandle, outhandle)
+    def update_transcripts_table_with_evigene_info(connection: sqlite3.Connection,
+                                                   transcript_classes: defaultdict[dict[Any]]) -> None:
+        values = [(data["transcript_class"], data["evigene_pass"], uid) for uid, data in transcript_classes.items()]
+        cursor = connection.cursor()
+        sql_statement = "UPDATE transcripts SET transcript_class = ?, evigene_pass = ? WHERE uid = ?"
+        cursor.executemany(sql_statement, values)
+        connection.commit()
 
 class CdsMetadataManager:
-    def __init__(self, assembly_fasta: Path, outdir: Path, transcript_metadata: Path, cds_metadata: Path) -> None:
+    def __init__(self, assembly_fasta: Path, outdir: Path, sqlite_db: Path) -> None:
         self.assembly_fasta = assembly_fasta
         self.outdir = outdir
-        self.transcript_metadata_path = transcript_metadata
-        self.cds_metadata_path = cds_metadata
+        self.sqlite_db = sqlite_db
 
     def run(self) -> None:
         cds_paths = self.set_cds_paths(self.outdir, self.assembly_fasta)
         cds_metadata = self.extract_cds_metadata(cds_paths)
-        self.write_cds_metadata(self.cds_metadata_path, cds_metadata)
-
         transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(cds_metadata)
 
-        tmpfile_path = self.write_appended_metadata_to_tempfile(transcript_cds_id_mapping, self.transcript_metadata_path, self.outdir)
-        self.copy_file(tmpfile_path, self.transcript_metadata_path)
-        tmpfile_path.unlink()
+        with sqlite3.connect(self.sqlite_db) as connection:
+            self.insert_cds_info_to_cds_table(connection, cds_metadata)
+            self.add_cds_column_to_transcripts_table(connection)
+            self.update_transcripts_table_with_cds_ids(connection, transcript_cds_id_mapping)
 
     @classmethod
     def set_cds_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
@@ -251,7 +238,7 @@ class CdsMetadataManager:
 
                     cds_metadata.append(
                         {
-                        "cds_id": str(cds_id),
+                        "cds_id": cds_id,
                         "transcript_id": transcript_id,
                         "evigene_class": evigene_class,
                         "strand": strand,
@@ -263,8 +250,8 @@ class CdsMetadataManager:
         return cds_metadata
 
     @staticmethod
-    def extract_transcript_id(line: str) -> str:
-        return line.split(" ")[0][1:].split("_prefix_")[-1].replace("utrorf", "")
+    def extract_transcript_id(line: str) -> int:
+        return int(line.split(" ")[0][1:].split("_prefix_")[-1].replace("utrorf", ""))
 
     @staticmethod
     def extract_evigene_class(line: str) -> str:
@@ -290,62 +277,44 @@ class CdsMetadataManager:
         return start, end
 
     @staticmethod
-    def set_expected_evigene_classes() -> set[str]:
-        expected_classes = {"althi", "althi1", "althia2", "althinc", "altmfrag", "altmfraga2", "altmid", "altmida2",
-                            "main", "maina2", "mainnc",
-                            "noclass", "noclassa2", "noclassa2nc", "noclassnc",
-                            "parthi", "parthi1", "parthia2",
-                            "perfdupl", "perffrag",
-                            "smallorf"}
-        additional_classes = {"altmidfrag", "altmidfraga2"}
-        expected_classes = expected_classes | additional_classes
-
-        return expected_classes
-
-    @staticmethod
-    def write_cds_metadata(cds_metadata_path: Path, cds_metadata: list[dict[Any]]) -> None:
-        print("\nWriting CDS metadata")
-        with cds_metadata_path.open("w") as outhandle:
-            writer = DictWriter(outhandle, fieldnames=cds_metadata[0].keys())
-            writer.writeheader()
-            for data in cds_metadata:
-                writer.writerow(data)
-
-    @staticmethod
     def extract_transcript_cds_id_mapping(cds_metadata: list[dict[Any]]) -> dict[str]:
         transcript_cds_id_mapper = defaultdict(list)
         for data in cds_metadata:
-            cds_id = data["cds_id"]
+            cds_id = str(data["cds_id"])
             transcript_id = data["transcript_id"]
             transcript_cds_id_mapper[transcript_id].append(cds_id)
         return {transcript_id: ";".join(cds_ids) for transcript_id, cds_ids in transcript_cds_id_mapper.items()}
 
     @staticmethod
-    def write_appended_metadata_to_tempfile(transcript_cds_id_mapping: dict[str], metadata_path: Path, outdir: Path) -> Path:
-        print("Starting to write appended metadata to tmpfile\n")
-        new_fields = ["cds_ids"]
-
-        with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
-            reader = DictReader(inhandle)
-            write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
-
-            writer = DictWriter(tmpfile, fieldnames=write_field_names)
-            writer.writeheader()
-            for data in reader:
-                transcript_id = data["sequence_id"]
-                try:
-                    cds_ids = transcript_cds_id_mapping[transcript_id]
-                    data.update({"cds_ids": cds_ids})
-                except KeyError:
-                    pass
-                writer.writerow(data)
-        return Path(tmpfile.name)
+    def insert_cds_info_to_cds_table(connection: sqlite3.Connection, cds_metadata: list[dict[Any]]) -> None:
+        values = [tuple(data.values()) for data in cds_metadata]
+        cursor = connection.cursor()
+        try:
+            sql_statement = '''INSERT INTO cds VALUES (?,?,?,?,?,?,?)'''
+            cursor.executemany(sql_statement, values)
+            connection.commit()
+        except sqlite3.IntegrityError as e:
+            print("Skipping CDS insert statement. Error detected:")
+            print(e)
 
     @staticmethod
-    def copy_file(infile_path: Path, outfile_path: Path) -> None:
-        print("Starting to copy tmpfile to metadata file")
-        with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
-            copyfileobj(inhandle, outhandle)
+    def add_cds_column_to_transcripts_table(connection: sqlite3.Connection) -> None:
+        try:
+            cursor = connection.cursor()
+            cursor.execute(f"ALTER TABLE transcripts ADD COLUMN cds_ids TEXT")
+            connection.commit()
+        except sqlite3.OperationalError as e:
+            print("Skipping add columns step. Error detected:")
+            print(e)
+
+    @staticmethod
+    def update_transcripts_table_with_cds_ids(connection: sqlite3.Connection,
+                                                   transcript_cds_id_mapping: dict[str]) -> None:
+        values = [(cds_ids, uid) for uid, cds_ids in transcript_cds_id_mapping.items()]
+        cursor = connection.cursor()
+        sql_statement = "UPDATE transcripts SET cds_ids = ? WHERE uid = ?"
+        cursor.executemany(sql_statement, values)
+        connection.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -357,16 +326,16 @@ if __name__ == "__main__":
     parser.add_argument("-phetero", type=int, required=False)
     parser.add_argument("-minaa", type=int, required=False)
     parser.add_argument("-prefix_column", type=str, required=False)
-    parser.add_argument("-metadata", type=str, required=False)
-    parser.add_argument("-run_metadata_appender", action="store_true", required=False)
-    parser.add_argument("-cds_metadata", type=str, required=False)
+    parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-run_transcript_metadata_appender", action="store_true", required=False)
+    parser.add_argument("-run_cds_and_metadata", action="store_true", required=False)
     args = parser.parse_args()
 
-    if args.prefix_column and args.metadata:
-        pfm = PrefixedFastaManager(Path(args.assembly_fasta), Path(args.outdir), args.prefix_column, Path(args.metadata))
+    if args.prefix_column and args.sqlite_db:
+        pfm = PrefixedFastaManager(Path(args.assembly_fasta), Path(args.outdir), args.prefix_column, Path(args.sqlite_db))
         tmp_prefixed_fasta = pfm.run()
-    elif args.prefix_column and not args.metadata:
-        raise Exception("Prefix detected, but not metadata.\nCancelling run")
+    elif args.prefix_column and not args.sqlite_db:
+        raise Exception("Prefix detected, but not sqlite_db.\nCancelling run")
     else:
        tmp_prefixed_fasta = None
 
@@ -380,17 +349,18 @@ if __name__ == "__main__":
     if args.run_evigene:
         print("\nRunning evigene assembly classifier")
         em.run_assembly_classifier(args.phetero, args.minaa)
-    if args.run_metadata_appender:
-        print("\nRunning metadata appender")
-        em.run_metadata_appender(Path(args.metadata))
+
+    if args.run_transcript_metadata_appender:
+        print("\nRunning transcript metadata appender")
+        em.run_metadata_appender(Path(args.sqlite_db))
 
     if tmp_prefixed_fasta:
         tmp_prefixed_fasta.unlink()
         tmp_prefixed_fasta.parent.rmdir()
 
-    if args.cds_metadata:
-        print("\nRunning CDS metadata extractor")
-        cmm = CdsMetadataManager(assembly_fasta, Path(args.outdir), Path(args.metadata), Path(args.cds_metadata))
+    if args.run_cds_and_metadata:
+        print("\nRunning CDS and metadata extractor")
+        cmm = CdsMetadataManager(assembly_fasta, Path(args.outdir), Path(args.sqlite_db))
         cmm.run()
 
     print("\nFinished\n")
