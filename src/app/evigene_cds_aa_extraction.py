@@ -28,12 +28,12 @@ class CdsAaFastaManager:
         # If cds metadata extraction fields are present, extract cds ids that meet the criteria,
         # then remove any transcript ids whose cds ids do not meet that criteria
         if self.sql_queries["cds_query"] is not None:
-            filtered_cds_ids = self.extract_filtered_cds_ids(self.cds_metadata, self.extraction_fields)
+            filtered_cds_ids = self.extract_filtered_cds_ids(self.sqlite_db, self.sql_queries)
             transcript_cds_id_mapping = self.filter_transcript_cds_id_mapping(transcript_cds_id_mapping, filtered_cds_ids)
             print(len(transcript_cds_id_mapping))
 
         if add_gene_name:
-            cds_gene_mapping = self.extract_cds_gene_mapping(self.cds_metadata)
+            cds_gene_mapping = self.extract_cds_gene_mapping(self.sqlite_db)
         else:
             cds_gene_mapping = None
 
@@ -45,7 +45,8 @@ class CdsAaFastaManager:
         if (self.cds_fasta) and (not self.aa_fasta):
             self.extract_and_write_cds(transcript_cds_id_mapping, cds_positions, self.assembly_fasta, self.cds_fasta, cds_gene_mapping)
         elif (not self.cds_fasta) and (self.aa_fasta):
-            self.extract_and_write_aa(transcript_cds_id_mapping, cds_positions, self.assembly_fasta, self.aa_fasta, codon_to_aa, cds_gene_mapping)
+            self.extract_and_write_aa(transcript_cds_id_mapping, cds_positions, self.assembly_fasta,
+                                      self.aa_fasta, codon_to_aa, cds_gene_mapping)
         elif self.cds_fasta and self.aa_fasta:
             self.extract_and_write_cds_aa(transcript_cds_id_mapping, cds_positions, self.assembly_fasta,
                                           self.cds_fasta, self.aa_fasta, codon_to_aa, cds_gene_mapping)
@@ -63,25 +64,14 @@ class CdsAaFastaManager:
             return {row[0]: [int(id) for id in row[1].split(";")] for row in cursor.fetchall()}
 
     @staticmethod
-    def extract_filtered_cds_ids(cds_metadata: Path, extraction_fields: dict[dict[str]]) -> set[str]:
-        cds_extraction_fields = extraction_fields["cds_metadata"]
+    def extract_filtered_cds_ids(sqlite_db: Path, sql_queries: dict[dict[str]]) -> set[int]:
+        sql_query = sql_queries["cds_query"]
         print("Starting filtered cds id mapping")
-        filtered_cds_ids = set()
 
-        with cds_metadata.open() as inhandle:
-            reader = DictReader(inhandle)
-            for data in reader:
-                skip = False
-                for field, value in cds_extraction_fields.items():
-                    if data[field] != value:
-                        skip = True
-                        break
-                if skip:
-                    continue
-
-                cds_id = data["cds_id"]
-                filtered_cds_ids.add(cds_id)
-        return filtered_cds_ids
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute(sql_query)
+            return {row[0] for row in cursor.fetchall()}
 
     @staticmethod
     def filter_transcript_cds_id_mapping(transcript_cds_id_mapping: dict[list[str]], filtered_cds_ids: set[str]) -> dict[list[str]]:
@@ -98,17 +88,14 @@ class CdsAaFastaManager:
         return filtered_transcript_cds_id_mapping
 
     @staticmethod
-    def extract_cds_gene_mapping(cds_metadata: Path) -> dict[str]:
+    def extract_cds_gene_mapping(sqlite_db: Path) -> dict[str]:
         print("Starting cds to gene name mapping")
-        cds_gene_mapping = dict()
+        sql_query = "SELECT uid,gene_symbol FROM cds"
 
-        with cds_metadata.open() as inhandle:
-            reader = DictReader(inhandle)
-            for data in reader:
-                cds_id = data["cds_id"]
-                gene = data["gene"]
-                cds_gene_mapping[cds_id] = gene
-        return cds_gene_mapping
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute(sql_query)
+            return {row[0]: row[1] for row in cursor.fetchall()}
 
     @staticmethod
     def extract_cds_positions(sqlite_db: Path) -> dict[Any]:
