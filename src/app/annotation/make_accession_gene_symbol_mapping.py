@@ -3,34 +3,35 @@ from csv import reader
 from itertools import islice
 from json import loads
 from pathlib import Path
+import sqlite3
 import subprocess
 from typing import Iterator
 
 class AccessionGeneMapper:
-    def __init__(self, blast_results: Path, datasets_mapping_path: Path) -> None:
+    def __init__(self, blast_results: Path, sqlite_db: Path) -> None:
         self.blast_results = blast_results
-        self.datasets_mapping_path = datasets_mapping_path
+        self.sqlite_db = sqlite_db
 
     def run(self, upper: bool=True) -> None:
         # Extract non redundant accession numbers for submission to NCBI
         accession_numbers = self.extract_accession_numbers(self.blast_results)
         print(f"\nAll accession numbers count: {len(accession_numbers)}")
 
-        if not self.datasets_mapping_path.exists():
-            accession_numbers_gene_symbol_mapping = {}
-            batch_sizes = [500, 500]
-            for batch_size in batch_sizes:
-                remaining_accession_numbers = {acc for acc in accession_numbers if acc not in accession_numbers_gene_symbol_mapping}
-                accession_numbers_gene_symbol_mapping.update(self.batch_ncbi_datasets_accession_gene_mapping(remaining_accession_numbers, batch_size))
-                print(f"Mapping keys so far: {len(accession_numbers_gene_symbol_mapping)}")
+        accession_numbers_gene_symbol_mapping = {}
+        batch_sizes = [500, 500]
+        for batch_size in batch_sizes:
+            remaining_accession_numbers = {acc for acc in accession_numbers if acc not in accession_numbers_gene_symbol_mapping}
+            accession_numbers_gene_symbol_mapping.update(self.batch_ncbi_datasets_accession_gene_mapping(remaining_accession_numbers, batch_size))
+            print(f"Mapping keys so far: {len(accession_numbers_gene_symbol_mapping)}")
 
-            accession_numbers_gene_symbol_mapping = self.remove_extraneous_accession_numbers(accession_numbers_gene_symbol_mapping, accession_numbers)
-            if upper:
-                accession_numbers_gene_symbol_mapping = self.upper_case_genes(accession_numbers_gene_symbol_mapping)
+        accession_numbers_gene_symbol_mapping = self.remove_extraneous_accession_numbers(accession_numbers_gene_symbol_mapping, accession_numbers)
+        if upper:
+            accession_numbers_gene_symbol_mapping = self.upper_case_genes(accession_numbers_gene_symbol_mapping)
 
-            self.write_datasets_mapping(accession_numbers_gene_symbol_mapping, self.datasets_mapping_path)
-        else:
-            accession_numbers_gene_symbol_mapping = self.extract_datasets_mapping(self.datasets_mapping_path)
+        with sqlite3.connect(self.sqlite_db) as connection:
+            self.create_accession_numbers_table(connection)
+            self.insert_accession_gene_mapping_into_table(connection, accession_numbers_gene_symbol_mapping)
+
         print(f"Datasets mapping keys count: {len(accession_numbers_gene_symbol_mapping)}")
 
     @staticmethod
@@ -120,27 +121,28 @@ class AccessionGeneMapper:
         return {k: v.upper() for k, v in accession_numbers_gene_mapping.items()}
 
     @staticmethod
-    def write_datasets_mapping(accession_gene_mapping: dict[str], outpath: Path) -> None:
-        keys = sorted(list(accession_gene_mapping.keys()))
-        with outpath.open("w") as outhandle:
-            for key in keys:
-                value = accession_gene_mapping[key]
-                outhandle.write(f"{key},{value}\n")
+    def create_accession_numbers_table(connection: sqlite3.Connection) -> None:
+        cursor = connection.cursor()
+        cursor.execute("DROP TABLE IF EXISTS accession_numbers")
+        cursor.execute('''CREATE TABLE accession_numbers
+                        (accession_number TEXT NOT NULL PRIMARY KEY,
+                        gene_symbol TEXT NOT NULL)''')
+        connection.commit()
 
     @staticmethod
-    def extract_datasets_mapping(inpath: Path) -> dict[str]:
-        accession_numbers_gene_symbol_mapping = {}
-        with inpath.open() as inhandle:
-            for line in inhandle:
-                line_info = line.strip().split(",")
-                accession_numbers_gene_symbol_mapping[line_info[0]] = line_info[1]
-        return accession_numbers_gene_symbol_mapping
+    def insert_accession_gene_mapping_into_table(connection: sqlite3.Connection,
+                                                 accession_numbers_gene_symbol_mapping: dict[str]) -> None:
+        cursor = connection.cursor()
+        values = [(acc, gene) for acc, gene in accession_numbers_gene_symbol_mapping.items()]
+        sql_statement = "INSERT INTO accession_numbers VALUES (?,?)"
+        cursor.executemany(sql_statement, values)
+        connection.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-blast_results", type=str, required=True)
-    parser.add_argument("-datasets_mapping", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
     args = parser.parse_args()
 
-    agm = AccessionGeneMapper(Path(args.blast_results), Path(args.datasets_mapping))
+    agm = AccessionGeneMapper(Path(args.blast_results), Path(args.sqlite_db))
     agm.run()

@@ -3,21 +3,21 @@ from collections import defaultdict
 from csv import DictReader, DictWriter, reader
 from pathlib import Path
 from shutil import copyfileobj
+import sqlite3
 from tempfile import NamedTemporaryFile
 from typing import Any
 
 class GeneAssigner:
-    def __init__(self, blast_results: Path, accession_gene_mapping: Path, cds_metadata: Path) -> None:
+    def __init__(self, blast_results: Path, sqlite_db: Path) -> None:
         self.blast_results = blast_results
-        self.accession_gene_mapping_path = accession_gene_mapping
-        self.cds_metadata = cds_metadata
+        self.sqlite_db = sqlite_db
 
     def run(self) -> None:
         # Extract cds id to accession number mapping
         cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.blast_results)
 
         # Extract accession numbers to gene symbols mapping
-        accession_numbers_gene_mapping = self.extract_accession_number_gene_symbol_mapping(self.accession_gene_mapping_path)
+        accession_numbers_gene_mapping = self.extract_accession_number_gene_symbol_mapping(self.sqlite_db)
         print(len(accession_numbers_gene_mapping))
 
         # Assign best "gene" hit to cds id
@@ -29,16 +29,31 @@ class GeneAssigner:
         print(f"Core CDS count: {len(core_cds_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to CDS metadata file
-        blast_results_metadata_fields = ["accession_number", "gene", "unambiguous_gene", "core_cds"]
         blast_results_metadata = self.collate_blast_results_metadata(cds_id_accession_numbers_mapping,
                                                                          cds_id_best_gene_mapping, core_cds_ids)
         
-        # Append new metadata to CDS metadata file
-        tmpfile_path = self.write_appended_metadata_to_tempfile(self.cds_metadata, self.blast_results.parent,
-                                                                blast_results_metadata, blast_results_metadata_fields,
-                                                                "cds_id")
-        self.copy_file(tmpfile_path, self.cds_metadata)
-        tmpfile_path.unlink()
+        # Insert new metadata to CDS metadata table
+        with sqlite3.connect(self.sqlite_db) as connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute(f"ALTER TABLE cds ADD COLUMN accession_number TEXT")
+                cursor.execute(f"ALTER TABLE cds ADD COLUMN gene_symbol TEXT")
+                cursor.execute(f"ALTER TABLE cds ADD COLUMN unambiguous_gene TEXT")
+                cursor.execute(f"ALTER TABLE cds ADD COLUMN core_cds INTEGER")
+                connection.commit()
+            except sqlite3.OperationalError as e:
+                print(e)
+
+            values = [(data["accession_number"], data["gene_symbol"],
+                       data["unambiguous_gene"], data["core_cds"], uid)
+                       for uid, data in blast_results_metadata.items()]
+            
+            sql_statement = ("UPDATE cds "
+                             "SET accession_number = ?, gene_symbol = ?, "
+                             "unambiguous_gene = ?, core_cds = ? "
+                             "WHERE uid = ?")
+            cursor.executemany(sql_statement, values)
+            connection.commit()
 
     @staticmethod
     def extract_cds_id_accession_numbers_mapping(blast_results: Path) -> dict[list[str]]:
@@ -52,13 +67,12 @@ class GeneAssigner:
         return dict(cds_id_accession_numbers_mapping)
 
     @staticmethod
-    def extract_accession_number_gene_symbol_mapping(accession_gene_mapping_path: Path) -> dict[str]:
-        accession_numbers_gene_mapping = {}
-        with accession_gene_mapping_path.open() as inhandle:
-            for line in inhandle:
-                line = line.strip().split(",")
-                accession_numbers_gene_mapping[line[0]] = line[1]
-        return accession_numbers_gene_mapping
+    def extract_accession_number_gene_symbol_mapping(sqlite_db: Path) -> dict[str]:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = "SELECT accession_number,gene_symbol FROM accession_numbers"
+            cursor.execute(sql_query)
+            return {row[0]: row[1] for row in cursor.fetchall()}
 
     @staticmethod
     def assign_best_gene_to_cds_ids(accession_numbers_gene_mapping: dict[str],
@@ -134,55 +148,24 @@ class GeneAssigner:
                 accession_number = cds_id_best_gene_mapping[cds_id]["accession"]
                 gene = cds_id_best_gene_mapping[cds_id]["gene"]
                 if gene.startswith("LOC") or gene.startswith("CUN"):
-                    unambiguous = False
+                    unambiguous = 0
                 else:
-                    unambiguous = True
+                    unambiguous = 1
             except KeyError:
                 accession_number = accession_numbers[0]
                 gene = ""
                 unambiguous = ""
-            core_cds = True if cds_id in core_cds_ids else ""
+            core_cds = 1 if cds_id in core_cds_ids else ""
 
-            metadata = {"accession_number": accession_number, "gene": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
+            metadata = {"accession_number": accession_number, "gene_symbol": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             blast_results_metadata[cds_id] = metadata
         return blast_results_metadata
-
-    @staticmethod
-    def write_appended_metadata_to_tempfile(metadata_path: Path, outdir: Path,
-                                            new_metadata: dict[Any], new_fields: list[str],
-                                            primary_key_column: str) -> Path:
-        print("Starting to write to tmpfile\n(This may take a moment)")
-
-        empty_metadata_singlet = {field: "" for field in new_fields}
-
-        with metadata_path.open() as inhandle, NamedTemporaryFile(dir=outdir, mode="w", delete=False) as tmpfile:
-            reader = DictReader(inhandle)
-            write_field_names = reader.fieldnames + [field for field in new_fields if field not in reader.fieldnames]
-
-            writer = DictWriter(tmpfile, fieldnames=write_field_names)
-            writer.writeheader()
-            for data in reader:
-                primary_key = data[primary_key_column]
-                try:
-                    new_metadata_singlet = new_metadata[primary_key]
-                    data.update(new_metadata_singlet)
-                except KeyError:
-                    data.update(empty_metadata_singlet)
-                writer.writerow(data)
-        return Path(tmpfile.name)
-
-    @staticmethod
-    def copy_file(infile_path: Path, outfile_path: Path) -> None:
-        print("Starting to copy tmpfile to metadata file")
-        with infile_path.open("rb") as inhandle, outfile_path.open("wb") as outhandle:
-            copyfileobj(inhandle, outhandle)
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-blast_results", type=str, required=True)
-    parser.add_argument("-accession_gene_mapping", type=str, required=True)
-    parser.add_argument("-cds_metadata", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
     args = parser.parse_args()
 
-    ga = GeneAssigner(Path(args.blast_results), Path(args.accession_gene_mapping), Path(args.cds_metadata))
+    ga = GeneAssigner(Path(args.blast_results), Path(args.sqlite_db))
     ga.run()

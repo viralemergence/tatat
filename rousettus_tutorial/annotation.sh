@@ -15,7 +15,6 @@ ENV_FILE=$1
 . $ENV_FILE
 
 mkdir $BLAST_HITS_DIR
-mkdir $ACCESSION_GENE_MAPPING_DIR
 
 module load singularity
 
@@ -49,6 +48,7 @@ singularity exec \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 10
 
 # Generate accession number to gene symbol mapping from blastn results
+# and add to sqlite db as "accession_numbers" table
 singularity exec \
     --pwd /src \
     --no-home \
@@ -56,11 +56,11 @@ singularity exec \
     --bind /etc:/etc \
     --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
-    --bind $ACCESSION_GENE_MAPPING_DIR:/src/accession_gene_mapping \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -datasets_mapping /src/accession_gene_mapping/datasets_mapping.csv
+    -sqlite_db /src/sqlite_db/tatat.db
 
 # Append accession numbers and genes to cds metadata,
 # and pick "best" cds per genes, i.e. the "core" genes
@@ -69,13 +69,11 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
-    --bind $ACCESSION_GENE_MAPPING_DIR:/src/accession_gene_mapping \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/assign_gene_annotations_to_cds.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -accession_gene_mapping /src/accession_gene_mapping/datasets_mapping.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv
+    -sqlite_db /src/sqlite_db/tatat.db
 
 # Extract core cds as final "core" transcriptome
 singularity exec \
