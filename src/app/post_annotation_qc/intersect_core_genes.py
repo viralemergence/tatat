@@ -3,16 +3,17 @@ from csv import DictReader
 import matplotlib.pyplot as plt # type: ignore
 from matplotlib_venn import venn2 # type: ignore
 from pathlib import Path
+import sqlite3
 
 class GeneIntersector:
-    def __init__(self, cds_metadata: Path, ncbi_genes_path: Path, outdir: Path) -> None:
-        self.cds_metadata = cds_metadata
+    def __init__(self, sqlite_db: Path, ncbi_genes_path: Path, outdir: Path) -> None:
+        self.sqlite_db = sqlite_db
         self.ncbi_genes_path = ncbi_genes_path
         self.outdir = outdir
 
     def run(self) -> None:
         # Extract genes from files
-        tatat_core_genes = self.extract_tatat_core_genes(self.cds_metadata)
+        tatat_core_genes = self.extract_tatat_core_genes(self.sqlite_db)
         ncbi_genes = self.extract_ncbi_genes(self.ncbi_genes_path)
 
         # Remove hypothetical genes, distinguished by "LOC" prefix
@@ -34,15 +35,11 @@ class GeneIntersector:
                 outhandle.write(f"{gene}\n")
 
     @staticmethod
-    def extract_tatat_core_genes(data_path: Path) -> set[str]:
-        core_genes = set()
-        with data_path.open() as inhandle:
-            data_reader = DictReader(inhandle)
-            for data in data_reader:
-                if data["core_cds"] != "True":
-                    continue
-                core_genes.add(data["gene"])
-        return core_genes
+    def extract_tatat_core_genes(sqlite_db: Path) -> set[str]:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT gene_symbol FROM cds WHERE core_cds=1")
+            return {row[0] for row in cursor.fetchall()}
 
     @staticmethod
     def extract_ncbi_genes(data_path: Path) -> set[str]:
@@ -71,10 +68,10 @@ class GeneIntersector:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-cds_metadata", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
     parser.add_argument("-ncbi_genes_path", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
     args = parser.parse_args()
 
-    ga = GeneIntersector(Path(args.cds_metadata), Path(args.ncbi_genes_path), Path(args.outdir))
+    ga = GeneIntersector(Path(args.sqlite_db), Path(args.ncbi_genes_path), Path(args.outdir))
     ga.run()
