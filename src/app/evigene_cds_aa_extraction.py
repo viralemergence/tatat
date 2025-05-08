@@ -172,7 +172,7 @@ class CdsAaFastaManager:
 
         with aa_fasta.open("w") as aa_outhandle:
             for fasta_seq in cls.fasta_chunker(assembly_fasta):
-                transcript_id = fasta_seq[0][1:]
+                transcript_id = int(fasta_seq[0][1:])
                 try:
                     cds_ids = transcript_cds_id_mapping[transcript_id]
                 except KeyError:
@@ -211,7 +211,7 @@ class CdsAaFastaManager:
 
         with cds_fasta.open("w") as cds_outhandle, aa_fasta.open("w") as aa_outhandle:
             for fasta_seq in cls.fasta_chunker(assembly_fasta):
-                transcript_id = fasta_seq[0][1:]
+                transcript_id = int(fasta_seq[0][1:])
                 try:
                     cds_ids = transcript_cds_id_mapping[transcript_id]
                 except KeyError:
