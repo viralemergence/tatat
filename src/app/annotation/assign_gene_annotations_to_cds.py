@@ -1,10 +1,8 @@
 from argparse import ArgumentParser
 from collections import defaultdict
-from csv import DictReader, DictWriter, reader
+from csv import reader
 from pathlib import Path
-from shutil import copyfileobj
 import sqlite3
-from tempfile import NamedTemporaryFile
 from typing import Any
 
 class GeneAssigner:
@@ -34,26 +32,8 @@ class GeneAssigner:
         
         # Insert new metadata to CDS metadata table
         with sqlite3.connect(self.sqlite_db) as connection:
-            cursor = connection.cursor()
-            try:
-                cursor.execute(f"ALTER TABLE cds ADD COLUMN accession_number TEXT")
-                cursor.execute(f"ALTER TABLE cds ADD COLUMN gene_symbol TEXT")
-                cursor.execute(f"ALTER TABLE cds ADD COLUMN unambiguous_gene TEXT")
-                cursor.execute(f"ALTER TABLE cds ADD COLUMN core_cds INTEGER")
-                connection.commit()
-            except sqlite3.OperationalError as e:
-                print(e)
-
-            values = [(data["accession_number"], data["gene_symbol"],
-                       data["unambiguous_gene"], data["core_cds"], uid)
-                       for uid, data in blast_results_metadata.items()]
-            
-            sql_statement = ("UPDATE cds "
-                             "SET accession_number = ?, gene_symbol = ?, "
-                             "unambiguous_gene = ?, core_cds = ? "
-                             "WHERE uid = ?")
-            cursor.executemany(sql_statement, values)
-            connection.commit()
+            self.add_columns_to_cds_table(connection)
+            self.update_cds_table(connection, blast_results_metadata)
 
     @staticmethod
     def extract_cds_id_accession_numbers_mapping(blast_results: Path) -> dict[list[str]]:
@@ -160,6 +140,32 @@ class GeneAssigner:
             metadata = {"accession_number": accession_number, "gene_symbol": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             blast_results_metadata[cds_id] = metadata
         return blast_results_metadata
+
+    @staticmethod
+    def add_columns_to_cds_table(connection: sqlite3.Connection) -> None:
+        cursor = connection.cursor()
+        try:
+            cursor.execute(f"ALTER TABLE cds ADD COLUMN accession_number TEXT")
+            cursor.execute(f"ALTER TABLE cds ADD COLUMN gene_symbol TEXT")
+            cursor.execute(f"ALTER TABLE cds ADD COLUMN unambiguous_gene TEXT")
+            cursor.execute(f"ALTER TABLE cds ADD COLUMN core_cds INTEGER")
+            connection.commit()
+        except sqlite3.OperationalError as e:
+            print(e)
+
+    @staticmethod
+    def update_cds_table(connection: sqlite3.Connection, blast_results_metadata: dict[Any]) -> None:
+        cursor = connection.cursor()
+        values = [(data["accession_number"], data["gene_symbol"],
+                    data["unambiguous_gene"], data["core_cds"], uid)
+                    for uid, data in blast_results_metadata.items()]
+        
+        sql_statement = ("UPDATE cds "
+                            "SET accession_number = ?, gene_symbol = ?, "
+                            "unambiguous_gene = ?, core_cds = ? "
+                            "WHERE uid = ?")
+        cursor.executemany(sql_statement, values)
+        connection.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser()
