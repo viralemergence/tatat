@@ -114,11 +114,6 @@ class EvigeneManager:
         transcript_classes = self.extract_transcript_classes(transcript_paths)
 
         with sqlite3.connect(sqlite_db) as connection:
-            try:
-                self.add_evigene_columns_to_transcripts_table(connection)
-            except sqlite3.OperationalError as e:
-                print("Skipping add columns step. Error detected:")
-                print(e)
             self.update_transcripts_table_with_evigene_info(connection, transcript_classes)
 
     @classmethod
@@ -169,13 +164,6 @@ class EvigeneManager:
         return transcript_classes
 
     @staticmethod
-    def add_evigene_columns_to_transcripts_table(connection: sqlite3.Connection) -> None:
-        cursor = connection.cursor()
-        cursor.execute(f"ALTER TABLE transcripts ADD COLUMN transcript_class TEXT")
-        cursor.execute(f"ALTER TABLE transcripts ADD COLUMN evigene_pass INTEGER")
-        connection.commit()
-
-    @staticmethod
     def update_transcripts_table_with_evigene_info(connection: sqlite3.Connection,
                                                    transcript_classes: defaultdict[dict[Any]]) -> None:
         values = [(data["transcript_class"], data["evigene_pass"], uid) for uid, data in transcript_classes.items()]
@@ -197,7 +185,6 @@ class CdsMetadataManager:
 
         with sqlite3.connect(self.sqlite_db) as connection:
             self.insert_cds_info_to_cds_table(connection, cds_metadata)
-            self.add_cds_column_to_transcripts_table(connection)
             self.update_transcripts_table_with_cds_ids(connection, transcript_cds_id_mapping)
 
     @classmethod
@@ -289,23 +276,9 @@ class CdsMetadataManager:
     def insert_cds_info_to_cds_table(connection: sqlite3.Connection, cds_metadata: list[dict[Any]]) -> None:
         values = [tuple(data.values()) for data in cds_metadata]
         cursor = connection.cursor()
-        try:
-            sql_statement = '''INSERT INTO cds VALUES (?,?,?,?,?,?,?)'''
-            cursor.executemany(sql_statement, values)
-            connection.commit()
-        except sqlite3.IntegrityError as e:
-            print("Skipping CDS insert statement. Error detected:")
-            print(e)
-
-    @staticmethod
-    def add_cds_column_to_transcripts_table(connection: sqlite3.Connection) -> None:
-        try:
-            cursor = connection.cursor()
-            cursor.execute(f"ALTER TABLE transcripts ADD COLUMN cds_ids TEXT")
-            connection.commit()
-        except sqlite3.OperationalError as e:
-            print("Skipping add columns step. Error detected:")
-            print(e)
+        sql_statement = '''INSERT INTO cds (uid, transcript_uid, evigene_class, strand, start, end, length) VALUES (?,?,?,?,?,?,?)'''
+        cursor.executemany(sql_statement, values)
+        connection.commit()
 
     @staticmethod
     def update_transcripts_table_with_cds_ids(connection: sqlite3.Connection,

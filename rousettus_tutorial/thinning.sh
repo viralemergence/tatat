@@ -18,9 +18,20 @@ mkdir $EVIGENE_OUTPUT_DIR
 
 module load singularity
 
-# To merge assemblies into single file,
-# generate corresponding sqlite metadata table (called "transcripts"),
-# as well as an empty sqlite metadata table "cds"
+# Generate sqlite db tables
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_transcripts_table \
+    -create_cds_table
+
+# To merge assemblies into single file
+# and update corresponding sqlite metadata table "transcripts"
 singularity exec \
     --pwd /src \
     --no-home \

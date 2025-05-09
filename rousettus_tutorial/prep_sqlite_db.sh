@@ -23,6 +23,9 @@ singularity exec \
     --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
-    python3 -u /src/app/sqlite3_prep.py \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
     -sample_metadata /src/sqlite_db/sample_metadata.csv \
-    -sqlite_db_dir /src/sqlite_db
+    -create_transcripts_table \
+    -create_cds_table \
+    -create_acc_num_table
