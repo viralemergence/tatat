@@ -47,6 +47,17 @@ singularity exec \
     -evalue 0.0001 -num_threads 19 -mt_mode 1 \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 10
 
+# Generate sqlite db "accession_numbers" table
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_acc_num_table
+
 # Generate accession number to gene symbol mapping from blastn results
 # and add to sqlite db as "accession_numbers" table
 singularity exec \
@@ -62,8 +73,8 @@ singularity exec \
     -blast_results /src/blast_hits/cds_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db
 
-# Append accession numbers and genes to cds metadata,
-# and pick "best" cds per genes, i.e. the "core" genes
+# Append accession numbers and genes to cds metadata sqlite table,
+# and pick "best" cds per gene, i.e. the "core" genes
 singularity exec \
     --pwd /src \
     --no-home \

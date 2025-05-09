@@ -29,7 +29,6 @@ class AccessionGeneMapper:
             accession_numbers_gene_symbol_mapping = self.upper_case_genes(accession_numbers_gene_symbol_mapping)
 
         with sqlite3.connect(self.sqlite_db) as connection:
-            self.create_accession_numbers_table(connection)
             self.insert_accession_gene_mapping_into_table(connection, accession_numbers_gene_symbol_mapping)
 
         print(f"Datasets mapping keys count: {len(accession_numbers_gene_symbol_mapping)}")
@@ -121,20 +120,11 @@ class AccessionGeneMapper:
         return {k: v.upper() for k, v in accession_numbers_gene_mapping.items()}
 
     @staticmethod
-    def create_accession_numbers_table(connection: sqlite3.Connection) -> None:
-        cursor = connection.cursor()
-        cursor.execute("DROP TABLE IF EXISTS accession_numbers")
-        cursor.execute('''CREATE TABLE accession_numbers
-                        (accession_number TEXT NOT NULL PRIMARY KEY,
-                        gene_symbol TEXT NOT NULL)''')
-        connection.commit()
-
-    @staticmethod
     def insert_accession_gene_mapping_into_table(connection: sqlite3.Connection,
                                                  accession_numbers_gene_symbol_mapping: dict[str]) -> None:
         cursor = connection.cursor()
         values = [(acc, gene) for acc, gene in accession_numbers_gene_symbol_mapping.items()]
-        sql_statement = "INSERT INTO accession_numbers VALUES (?,?)"
+        sql_statement = "INSERT INTO accession_numbers VALUES (?, ?)"
         cursor.executemany(sql_statement, values)
         connection.commit()
 

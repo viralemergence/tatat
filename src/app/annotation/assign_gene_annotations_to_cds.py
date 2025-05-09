@@ -32,7 +32,6 @@ class GeneAssigner:
         
         # Insert new metadata to CDS metadata table
         with sqlite3.connect(self.sqlite_db) as connection:
-            self.add_columns_to_cds_table(connection)
             self.update_cds_table(connection, blast_results_metadata)
 
     @staticmethod
@@ -140,18 +139,6 @@ class GeneAssigner:
             metadata = {"accession_number": accession_number, "gene_symbol": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             blast_results_metadata[cds_id] = metadata
         return blast_results_metadata
-
-    @staticmethod
-    def add_columns_to_cds_table(connection: sqlite3.Connection) -> None:
-        cursor = connection.cursor()
-        try:
-            cursor.execute(f"ALTER TABLE cds ADD COLUMN accession_number TEXT")
-            cursor.execute(f"ALTER TABLE cds ADD COLUMN gene_symbol TEXT")
-            cursor.execute(f"ALTER TABLE cds ADD COLUMN unambiguous_gene TEXT")
-            cursor.execute(f"ALTER TABLE cds ADD COLUMN core_cds INTEGER")
-            connection.commit()
-        except sqlite3.OperationalError as e:
-            print(e)
 
     @staticmethod
     def update_cds_table(connection: sqlite3.Connection, blast_results_metadata: dict[Any]) -> None:
