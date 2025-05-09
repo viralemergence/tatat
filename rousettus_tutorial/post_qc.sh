@@ -59,12 +59,12 @@ singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $POST_QC_DIR/ncbi:/src/ncbi \
     --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/intersect_core_genes.py \
-    -cds_metadata /src/metadata/cds_metadata.csv \
+    -sqlite_db /src/sqlite_db/tatat.db \
     -ncbi_genes_path /src/ncbi/9407_ncbi_genes.txt \
     -outdir /src/gene_comparison
 
@@ -114,14 +114,14 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/evigene_cds_aa_extraction.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
-    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv \
-    -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
-    -cds_fasta /src/transcriptome_data/cds_core.fna -add_gene_name
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
+    -cds_fasta /src/transcriptome_data/cds_core.fna \
+    -add_gene_name
 
 # Perform pairwise alignments of TATAT core genes to NCBI genes
 singularity exec \
@@ -169,11 +169,11 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR:/src/data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/salmon_count_mds.py \
     -counts /src/data/collated_salmon_counts.csv \
-    -metadata /src/metadata/sample_metadata.csv \
+    -sqlite_db /src/sqlite_db/tatat.db \
     -outdir /src/data
 
 # Extract TATAT core aa sequences for BUSCO
@@ -183,13 +183,12 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/evigene_cds_aa_extraction.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
-    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv \
-    -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
     -aa_fasta /src/transcriptome_data/aa_core_busco.faa
 
 # Run BUSCO on aa_core_busco.faa

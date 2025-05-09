@@ -15,7 +15,6 @@ ENV_FILE=$1
 . $ENV_FILE
 
 mkdir $BLAST_HITS_DIR
-mkdir $ACCESSION_GENE_MAPPING_DIR
 
 module load singularity
 
@@ -25,13 +24,12 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/evigene_cds_aa_extraction.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
-    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv \
-    -extraction_fields /src/app/example_extraction_fields/cds_for_blastn_extraction_fields.json \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/cds_for_blastn_sql_queries.json \
     -cds_fasta /src/transcriptome_data/cds.fna
 
 # Perform blastn search with candidate cds as queries
@@ -49,7 +47,19 @@ singularity exec \
     -evalue 0.0001 -num_threads 19 -mt_mode 1 \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 10
 
+# Generate sqlite db "accession_numbers" table
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_acc_num_table
+
 # Generate accession number to gene symbol mapping from blastn results
+# and add to sqlite db as "accession_numbers" table
 singularity exec \
     --pwd /src \
     --no-home \
@@ -57,26 +67,24 @@ singularity exec \
     --bind /etc:/etc \
     --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
-    --bind $ACCESSION_GENE_MAPPING_DIR:/src/accession_gene_mapping \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -datasets_mapping /src/accession_gene_mapping/datasets_mapping.csv
+    -sqlite_db /src/sqlite_db/tatat.db
 
-# Append accession numbers and genes to cds metadata,
-# and pick "best" cds per genes, i.e. the "core" genes
+# Append accession numbers and genes to cds metadata sqlite table,
+# and pick "best" cds per gene, i.e. the "core" genes
 singularity exec \
     --pwd /src \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
-    --bind $ACCESSION_GENE_MAPPING_DIR:/src/accession_gene_mapping \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/assign_gene_annotations_to_cds.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -accession_gene_mapping /src/accession_gene_mapping/datasets_mapping.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv
+    -sqlite_db /src/sqlite_db/tatat.db
 
 # Extract core cds as final "core" transcriptome
 singularity exec \
@@ -84,12 +92,11 @@ singularity exec \
     --no-home \
     --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
-    --bind $METADATA_DIR:/src/metadata \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/evigene_cds_aa_extraction.py \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
-    -transcript_metadata /src/metadata/transcriptome_metadata.csv \
-    -cds_metadata /src/metadata/cds_metadata.csv \
-    -extraction_fields /src/app/example_extraction_fields/core_gene_extraction_fields.json \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
     -cds_fasta /src/transcriptome_data/cds_core.fna \
     -add_gene_name

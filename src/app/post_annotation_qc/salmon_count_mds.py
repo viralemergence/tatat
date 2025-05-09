@@ -5,12 +5,22 @@ import seaborn as sns # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 from sklearn.manifold import MDS # type: ignore
 from sklearn.metrics import pairwise_distances # type: ignore
+import sqlite3
 
 class SalmonCountMDS:
-    def __init__(self, counts: Path, metadata: Path, outdir: Path) -> None:
+    def __init__(self, counts: Path, sqlite_db: Path, outdir: Path) -> None:
         self.counts = pd.read_csv(counts, index_col=0)
-        self.metadata = pd.read_csv(metadata)
+        self.metadata = self.extract_sample_metadata(sqlite_db)
         self.outdir = outdir
+
+    @staticmethod
+    def extract_sample_metadata(sqlite_db: Path) -> pd.DataFrame:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM samples")
+            results = cursor.fetchall()
+            columns = [description[0] for description in cursor.description]
+            return pd.DataFrame(results, columns=columns)
 
     def run(self) -> None:
         # Filter gene counts removing genes with essentially no count,
@@ -78,9 +88,9 @@ class SalmonCountMDS:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-counts", type=str, required=True)
-    parser.add_argument("-metadata", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
     args = parser.parse_args()
 
-    scp = SalmonCountMDS(Path(args.counts), Path(args.metadata), Path(args.outdir))
+    scp = SalmonCountMDS(Path(args.counts), Path(args.sqlite_db), Path(args.outdir))
     scp.run()

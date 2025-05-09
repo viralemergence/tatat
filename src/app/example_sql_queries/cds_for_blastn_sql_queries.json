@@ -1,0 +1,4 @@
+{
+    "transcripts_query": "SELECT uid,cds_ids FROM transcripts WHERE evigene_pass=1",
+    "cds_query": null
+}
