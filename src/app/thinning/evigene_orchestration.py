@@ -3,10 +3,11 @@ from collections import defaultdict
 from contextlib import contextmanager
 from os import chdir, environ, getcwd
 from pathlib import Path
+from shutil import rmtree
 import sqlite3
 import subprocess
 from tempfile import mkdtemp
-from typing import Any, Union
+from typing import Any, Iterator, Union
 
 @contextmanager
 def temporarily_change_working_directory(new_directory: Path):
@@ -17,43 +18,80 @@ def temporarily_change_working_directory(new_directory: Path):
     finally:
         chdir(starting_directory)
 
-class PrefixedFastaManager:
-    def __init__(self, assembly_fasta: Path, outdir: Path, prefix_column: str, sqlite_db: Path) -> None:
+class InputFastaManager:
+    def __init__(self, assembly_fasta: Path, outdir: Path, sqlite_db: Path, transcriptome: str, prefix_column: str) -> None:
         self.assembly_fasta = assembly_fasta
         self.outdir = outdir
-        self.prefix_column = prefix_column
         self.sqlite_db = sqlite_db
+        self.transcriptome = transcriptome
+        self.prefix_column = prefix_column
 
     def run(self) -> Path:
-        sequence_prefix_mapping = self.extract_sequence_prefix_mapping(self.prefix_column, self.sqlite_db)
-        tmp_prefixed_fasta = self.write_temporary_prefixed_fasta(self.assembly_fasta, self.outdir, sequence_prefix_mapping)
+        transcriptome_filtered_transcript_ids = self.extract_filtered_transcript_ids(self.sqlite_db, self.transcriptome)
+        transcript_prefix_mapping = self.extract_transcript_prefix_mapping(self.prefix_column, self.sqlite_db)
+
+        tmp_prefixed_fasta = self.write_temporary_prefixed_fasta(self.assembly_fasta, self.outdir,
+                                                                 transcriptome_filtered_transcript_ids, transcript_prefix_mapping)
         return tmp_prefixed_fasta
 
     @staticmethod
-    def extract_sequence_prefix_mapping(prefix_column: str, sqlite_db: Path) -> dict[str]:
-        print("\nExtracting sequence id to prefix mapping")
+    def extract_filtered_transcript_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
+        print(f"\nExtracting transcript ids that belong to transcriptome: {transcriptome}")
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = ("SELECT t.uid "
+                         "FROM transcripts t "
+                         "LEFT OUTER JOIN samples s ON t.sample_uid = s.uid "
+                         f"WHERE s.transcriptome = '{transcriptome}'")
+            cursor.execute(sql_query)
+            return {row[0] for row in cursor.fetchall()}
+
+    @staticmethod
+    def extract_transcript_prefix_mapping(prefix_column: str, sqlite_db: Path) -> dict[str]:
+        print("Extracting transcript id to prefix mapping")
         with sqlite3.connect(sqlite_db) as connection:
             cursor = connection.cursor()
             sql_query = f"SELECT uid,{prefix_column} FROM transcripts"
             cursor.execute(sql_query)
-            return {str(row[0]): row[1] for row in cursor.fetchall()}
+            return {row[0]: row[1] for row in cursor.fetchall()}
     
-    @staticmethod
-    def write_temporary_prefixed_fasta(assembly_fasta: Path, outdir: Path, sequence_prefix_mapping: dict[str]) -> Path:
+    @classmethod
+    def write_temporary_prefixed_fasta(cls, assembly_fasta: Path, outdir: Path,
+                                       filtered_transcript_ids: set[int], transcript_prefix_mapping: dict[str]) -> Path:
         print("Writing temporary prefixed fasta")
         temp_dir = mkdtemp(dir=outdir)
         outfile = Path(temp_dir) / assembly_fasta.name
-        with assembly_fasta.open() as inhandle, outfile.open("w") as outhandle:
+        with outfile.open("w") as outhandle:
+            for fasta_seq in cls.fasta_chunker(assembly_fasta):
+                transcript_id = int(fasta_seq[0][1:])
+                if transcript_id not in filtered_transcript_ids:
+                    continue
+
+                prefix = transcript_prefix_mapping[transcript_id]
+                new_header = ">" + "_".join([prefix, "prefix", str(transcript_id)])
+                outhandle.write(f"{new_header}\n")
+                for line in fasta_seq[1:]:
+                    outhandle.write(f"{line}\n")
+        return outfile
+
+    @staticmethod
+    def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
+        fasta_seq = []
+        first_chunk = True
+        with fasta_path.open() as inhandle:
             for line in inhandle:
                 line = line.strip()
-                if line[0] != ">":
-                    outhandle.write(line + "\n")
-                    continue
-                sequence_id = line[1:]
-                prefix = sequence_prefix_mapping[sequence_id]
-                new_header = ">" + "_".join([prefix, "prefix", sequence_id])
-                outhandle.write(new_header + "\n")
-        return outfile
+                if not line.startswith(">"):
+                    fasta_seq.append(line)
+                else:
+                    if first_chunk:
+                        fasta_seq.append(line)
+                        first_chunk = False
+                        continue
+                    yield fasta_seq
+                    fasta_seq = [line]
+            if fasta_seq:
+                yield fasta_seq
 
 class EvigeneManager:
     def __init__(self, assembly_fasta: Path, outdir: Path, cpus: int, memory: int) -> None:
@@ -293,31 +331,34 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-assembly_fasta", type=str, required=True)
     parser.add_argument("-outdir", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-transcriptome", type=str, required=True)
+    parser.add_argument("-prefix_column", type=str, required=True)
     parser.add_argument("-cpus", type=int, required=False, default=1)
     parser.add_argument("-mem", type=int, required=False, default=1_000)
     parser.add_argument("-run_evigene", action="store_true", required=False)
     parser.add_argument("-phetero", type=int, required=False)
     parser.add_argument("-minaa", type=int, required=False)
-    parser.add_argument("-prefix_column", type=str, required=False)
-    parser.add_argument("-sqlite_db", type=str, required=True)
     parser.add_argument("-run_transcript_metadata_appender", action="store_true", required=False)
     parser.add_argument("-run_cds_and_metadata", action="store_true", required=False)
     args = parser.parse_args()
 
-    if args.prefix_column and args.sqlite_db:
-        pfm = PrefixedFastaManager(Path(args.assembly_fasta), Path(args.outdir), args.prefix_column, Path(args.sqlite_db))
-        tmp_prefixed_fasta = pfm.run()
-    elif args.prefix_column and not args.sqlite_db:
-        raise Exception("Prefix detected, but not sqlite_db.\nCancelling run")
-    else:
-       tmp_prefixed_fasta = None
+    outdir = Path(args.outdir) / args.transcriptome
 
-    if tmp_prefixed_fasta:
-        assembly_fasta = tmp_prefixed_fasta
+    if args.run_evigene:
+        if outdir.is_dir():
+            rmtree(outdir)
+        outdir.mkdir()
+
+        ifm = InputFastaManager(Path(args.assembly_fasta), outdir,
+                                Path(args.sqlite_db), args.transcriptome, args.prefix_column)
+        tmp_fasta = ifm.run()
+        assembly_fasta = tmp_fasta
     else:
+        tmp_fasta = None
         assembly_fasta = Path(args.assembly_fasta)
 
-    em = EvigeneManager(assembly_fasta, Path(args.outdir), args.cpus, args.mem)
+    em = EvigeneManager(assembly_fasta, outdir, args.cpus, args.mem)
 
     if args.run_evigene:
         print("\nRunning evigene assembly classifier")
@@ -327,13 +368,13 @@ if __name__ == "__main__":
         print("\nRunning transcript metadata appender")
         em.run_metadata_appender(Path(args.sqlite_db))
 
-    if tmp_prefixed_fasta:
-        tmp_prefixed_fasta.unlink()
-        tmp_prefixed_fasta.parent.rmdir()
+    if tmp_fasta:
+        tmp_fasta.unlink()
+        tmp_fasta.parent.rmdir()
 
     if args.run_cds_and_metadata:
         print("\nRunning CDS and metadata extractor")
-        cmm = CdsMetadataManager(assembly_fasta, Path(args.outdir), Path(args.sqlite_db))
+        cmm = CdsMetadataManager(assembly_fasta, outdir, Path(args.sqlite_db))
         cmm.run()
 
     print("\nFinished\n")

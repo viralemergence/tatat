@@ -61,5 +61,6 @@ singularity exec \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -outdir /src/evigene_output \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -run_evigene -cpus 10 -mem 59000 -phetero 2 -prefix_column sample_uid -minaa 99 \
+    -transcriptome rousettus -prefix_column sample_uid \
+    -run_evigene -cpus 10 -mem 59000 -phetero 2 -minaa 99 \
     -run_transcript_metadata_appender -run_cds_and_metadata
