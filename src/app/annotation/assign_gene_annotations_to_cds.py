@@ -10,13 +10,17 @@ class GeneAssigner:
         self.blast_results = blast_results
         self.sqlite_db = sqlite_db
 
-    def run(self) -> None:
-        # Extract cds id to accession number mapping
+    def run(self, transcriptome: str) -> None:
+        # Extract cds id to accession number mapping, then filter by transcriptome
         cds_id_accession_numbers_mapping = self.extract_cds_id_accession_numbers_mapping(self.blast_results)
+        cds_id_accession_numbers_mapping = (
+            self.filter_cds_id_accession_numbers_mapping_by_transcriptome(cds_id_accession_numbers_mapping,
+                                                                          self.sqlite_db, transcriptome)
+                                            )
 
         # Extract accession numbers to gene symbols mapping
         accession_numbers_gene_mapping = self.extract_accession_number_gene_symbol_mapping(self.sqlite_db)
-        print(len(accession_numbers_gene_mapping))
+        print(f"Accession number count: {len(accession_numbers_gene_mapping)}")
 
         # Assign best "gene" hit to cds id
         cds_id_best_gene_mapping = self.assign_best_gene_to_cds_ids(accession_numbers_gene_mapping, cds_id_accession_numbers_mapping)
@@ -40,10 +44,29 @@ class GeneAssigner:
         with blast_results.open() as inhandle:
             blast_reader = reader(inhandle, delimiter="\t")
             for line in blast_reader:
-                cds_id = line[0]
+                cds_id = int(line[0])
                 accession_number = line[1]
                 cds_id_accession_numbers_mapping[cds_id].append(accession_number)
         return dict(cds_id_accession_numbers_mapping)
+
+    @classmethod
+    def filter_cds_id_accession_numbers_mapping_by_transcriptome(cls, cds_id_accession_numbers_mapping: dict[list[str]],
+                                                                 sqlite_db: Path, transcriptome: str) -> dict[list[str]]:
+        transcriptome_filtered_cds_ids = cls.extract_transcriptome_filtered_cds_ids(sqlite_db, transcriptome)
+        return {k: v for k, v in cds_id_accession_numbers_mapping.items() if k in transcriptome_filtered_cds_ids}
+
+    @staticmethod
+    def extract_transcriptome_filtered_cds_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
+        print(f"\nExtracting cds ids that belong to transcriptome: {transcriptome}")
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = ("SELECT c.uid "
+                         "FROM cds c "
+                         "LEFT OUTER JOIN transcripts t ON c.transcript_uid = t.uid "
+                         "LEFT OUTER JOIN samples s ON t.sample_uid = s.uid "
+                         f"WHERE s.transcriptome = '{transcriptome}'")
+            cursor.execute(sql_query)
+            return {row[0] for row in cursor.fetchall()}
 
     @staticmethod
     def extract_accession_number_gene_symbol_mapping(sqlite_db: Path) -> dict[str]:
@@ -89,7 +112,7 @@ class GeneAssigner:
         return cds_id_best_gene_mapping
 
     @classmethod
-    def calculate_core_cds_ids(cls, blast_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[str]:
+    def calculate_core_cds_ids(cls, blast_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[int]:
         cds_id_len_mapping = cls.extract_cds_id_len_mapping(blast_results)
 
         longest_cds = {gene: {"cds_id": "", "cds_len": 0} for gene in set(cds_info["gene"] for cds_info in cds_id_best_gene_mapping.values())}
@@ -107,12 +130,12 @@ class GeneAssigner:
         return core_cds_ids
 
     @staticmethod
-    def extract_cds_id_len_mapping(blast_results: Path) -> dict[str]:
+    def extract_cds_id_len_mapping(blast_results: Path) -> dict[int]:
         cds_id_len_mapping = dict()
         with blast_results.open() as inhandle:
             blast_reader = reader(inhandle, delimiter="\t")
             for line in blast_reader:
-                cds_id = line[0]
+                cds_id = int(line[0])
                 cds_len = int(line[-1])
                 cds_id_len_mapping[cds_id] = cds_len
         return cds_id_len_mapping
@@ -120,7 +143,7 @@ class GeneAssigner:
     @staticmethod
     def collate_blast_results_metadata(cds_id_accession_numbers_mapping: dict[str],
                                        cds_id_best_gene_mapping: dict[dict[str]],
-                                       core_cds_ids: set[str]) -> dict[Any]:
+                                       core_cds_ids: set[int]) -> dict[Any]:
         blast_results_metadata = {}
         for cds_id, accession_numbers in cds_id_accession_numbers_mapping.items():
             try:
@@ -133,8 +156,8 @@ class GeneAssigner:
             except KeyError:
                 accession_number = accession_numbers[0]
                 gene = ""
-                unambiguous = ""
-            core_cds = 1 if cds_id in core_cds_ids else ""
+                unambiguous = 0
+            core_cds = 1 if cds_id in core_cds_ids else 0
 
             metadata = {"accession_number": accession_number, "gene_symbol": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             blast_results_metadata[cds_id] = metadata
@@ -158,7 +181,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-blast_results", type=str, required=True)
     parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-transcriptome", type=str, required=True)
     args = parser.parse_args()
 
     ga = GeneAssigner(Path(args.blast_results), Path(args.sqlite_db))
-    ga.run()
+    ga.run(args.transcriptome)
