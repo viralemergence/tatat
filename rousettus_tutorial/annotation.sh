@@ -84,7 +84,7 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/assign_gene_annotations_to_cds.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -sqlite_db /src/sqlite_db/tatat.db
+    -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
 
 # Extract core cds as final "core" transcriptome
 singularity exec \
@@ -98,5 +98,5 @@ singularity exec \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -sqlite_db /src/sqlite_db/tatat.db \
     -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
-    -cds_fasta /src/transcriptome_data/cds_core.fna \
-    -add_gene_name
+    -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
+    -add_gene_name -transcriptome rousettus
