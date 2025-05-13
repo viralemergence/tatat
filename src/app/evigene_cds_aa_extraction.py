@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from constants import CODON_TO_AMINO_ACID
-from csv import DictReader, reader
+from csv import reader
 from json import load
 from pathlib import Path
 import sqlite3
@@ -20,10 +20,14 @@ class CdsAaFastaManager:
         with json_path.open() as inhandle:
             return load(inhandle)
 
-    def run(self, codon_to_aa: dict[str]=None, add_gene_name: True=None) -> None:
+    def run(self, codon_to_aa: dict[str]=None, add_gene_name: True=None, transcriptome: str=None) -> None:
         # Extract a dictionary of transcript ids mapping to cds ids (sometimes more than one cds id per transcript id)
         transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(self.sqlite_db, self.sql_queries)
         print(len(transcript_cds_id_mapping))
+        if transcriptome:
+            transcript_cds_id_mapping = self.filter_transcript_cds_id_mapping_by_transcriptome(transcript_cds_id_mapping,
+                                                                                               self.sqlite_db, transcriptome)
+            print(len(transcript_cds_id_mapping))
 
         # If cds metadata extraction fields are present, extract cds ids that meet the criteria,
         # then remove any transcript ids whose cds ids do not meet that criteria
@@ -63,6 +67,24 @@ class CdsAaFastaManager:
             cursor.execute(sql_query)
             return {row[0]: [int(id) for id in row[1].split(";")] for row in cursor.fetchall()}
 
+    @classmethod
+    def filter_transcript_cds_id_mapping_by_transcriptome(cls, transcript_cds_id_mapping: dict[list[int]],
+                                                          sqlite_db: Path, transcriptome: str) -> dict[list[int]]:
+        transcriptome_filtered_transcript_ids = cls.extract_transcriptome_filtered_transcript_ids(sqlite_db, transcriptome)
+        return {k: v for k, v in transcript_cds_id_mapping.items() if k in transcriptome_filtered_transcript_ids}
+
+    @staticmethod
+    def extract_transcriptome_filtered_transcript_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
+        print(f"\nExtracting transcript ids that belong to transcriptome: {transcriptome}")
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = ("SELECT t.uid "
+                         "FROM transcripts t "
+                         "LEFT OUTER JOIN samples s ON t.sample_uid = s.uid "
+                         f"WHERE s.transcriptome = '{transcriptome}'")
+            cursor.execute(sql_query)
+            return {row[0] for row in cursor.fetchall()}
+
     @staticmethod
     def extract_filtered_cds_ids(sqlite_db: Path, sql_queries: dict[dict[str]]) -> set[int]:
         sql_query = sql_queries["cds_query"]
@@ -74,7 +96,7 @@ class CdsAaFastaManager:
             return {row[0] for row in cursor.fetchall()}
 
     @staticmethod
-    def filter_transcript_cds_id_mapping(transcript_cds_id_mapping: dict[list[str]], filtered_cds_ids: set[str]) -> dict[list[str]]:
+    def filter_transcript_cds_id_mapping(transcript_cds_id_mapping: dict[list[int]], filtered_cds_ids: set[str]) -> dict[list[int]]:
         filtered_transcript_cds_id_mapping = dict()
 
         for transcript_id, cds_ids in transcript_cds_id_mapping.items():
@@ -246,6 +268,7 @@ if __name__ == "__main__":
     parser.add_argument("-cds_fasta", type=str, required=False)
     parser.add_argument("-aa_fasta", type=str, required=False)
     parser.add_argument("-add_gene_name", action="store_true", required=False)
+    parser.add_argument("-transcriptome", type=str, required=False)
     args = parser.parse_args()
 
     cds_fasta_path = Path(args.cds_fasta) if args.cds_fasta else None
@@ -254,5 +277,5 @@ if __name__ == "__main__":
     cafm = CdsAaFastaManager(Path(args.assembly_fasta), Path(args.sqlite_db),
                              Path(args.sql_queries), cds_fasta_path, aa_fasta_path)
     print("\nStarting CDS/AA Fasta Manager")
-    cafm.run(CODON_TO_AMINO_ACID, args.add_gene_name)
+    cafm.run(CODON_TO_AMINO_ACID, args.add_gene_name, args.transcriptome)
     print("\nFinished")
