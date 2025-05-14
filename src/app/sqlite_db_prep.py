@@ -70,6 +70,17 @@ class SqliteDbManager:
                            gene_symbol TEXT NOT NULL)''')
             connection.commit()
 
+    def create_ncrna_table(self) -> None:
+        with sqlite3.connect(self.sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute("DROP TABLE IF EXISTS ncrna")
+            cursor.execute('''CREATE TABLE ncrna
+                           (uid INTEGER NOT NULL PRIMARY KEY,
+                           accession_number TEXT,
+                           gene_symbol TEXT,
+                           core_ncrna INTEGER)''')
+            connection.commit()
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-sqlite_db_dir", type=str, required=True)
@@ -77,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("-create_transcripts_table", action="store_true", required=False)
     parser.add_argument("-create_cds_table", action="store_true", required=False)
     parser.add_argument("-create_acc_num_table", action="store_true", required=False)
+    parser.add_argument("-create_ncrna_table", action="store_true", required=False)
     args = parser.parse_args()
 
     sdm = SqliteDbManager(Path(args.sqlite_db_dir))
@@ -88,3 +100,5 @@ if __name__ == "__main__":
         sdm.create_cds_table()
     if args.create_acc_num_table:
         sdm.create_accession_numbers_table()
+    if args.create_ncrna_table:
+        sdm.create_ncrna_table()
