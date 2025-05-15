@@ -155,9 +155,12 @@ class GeneAssigner:
                     unambiguous = 1
             except KeyError:
                 accession_number = accession_numbers[0]
-                gene = ""
-                unambiguous = 0
-            core_cds = 1 if cds_id in core_cds_ids else 0
+                gene = None
+                unambiguous = None
+            if gene is None:
+                core_cds = None
+            else:
+                core_cds = 1 if cds_id in core_cds_ids else 0
 
             metadata = {"accession_number": accession_number, "gene_symbol": gene, "unambiguous_gene": unambiguous, "core_cds": core_cds}
             blast_results_metadata[cds_id] = metadata
