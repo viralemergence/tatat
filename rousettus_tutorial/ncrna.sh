@@ -8,11 +8,13 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=15G
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=30G
 
 ENV_FILE=$1
 . $ENV_FILE
+
+mkdir $NCRNA_DIR
 
 module load singularity
 
@@ -38,3 +40,19 @@ singularity exec \
     python3 -u /src/app/ncrna/ncrna_initial_filtering.py \
     -sqlite_db /src/sqlite_db/tatat.db \
     -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna
+
+# Remove ncrna candidates that map to core cds (via CD-HIT-EST-2D)
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $NCRNA_DIR:/src/ncrna \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/ncrna/cd_hit_orchestration.py \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -ncrna /src/ncrna \
+    -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
+    -cpus 10 -memory 30000
