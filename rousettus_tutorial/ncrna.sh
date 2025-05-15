@@ -8,8 +8,8 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=20
+#SBATCH --mem=60G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -55,4 +55,4 @@ singularity exec \
     -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -ncrna /src/ncrna \
     -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
-    -cpus 10 -memory 30000
+    -cpus 20 -memory 60000
