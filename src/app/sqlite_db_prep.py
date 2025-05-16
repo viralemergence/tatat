@@ -76,6 +76,7 @@ class SqliteDbManager:
             cursor.execute("DROP TABLE IF EXISTS ncrna")
             cursor.execute('''CREATE TABLE ncrna
                            (uid INTEGER NOT NULL PRIMARY KEY,
+                           cd_hit_pass INT,
                            accession_number TEXT,
                            gene_symbol TEXT,
                            core_ncrna INTEGER)''')

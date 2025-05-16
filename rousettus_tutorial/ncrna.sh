@@ -42,6 +42,7 @@ singularity exec \
     -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna
 
 # Remove ncrna candidates that map to core cds (via CD-HIT-EST-2D)
+# and then remove ncrna sequence duplicates (via CD-HIT-EST)
 singularity exec \
     --pwd /src \
     --no-home \

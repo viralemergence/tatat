@@ -21,6 +21,17 @@ class CdHitManager:
         self.run_cd_hit_est_2d(self.cds_fasta, self.temp_ncrna_fasta, self.ncrna_cd_hit_est_2d_fasta, cpus, memory)
         self.run_cd_hit_est(self.ncrna_cd_hit_est_2d_fasta, self.ncrna_cd_hit_est_fasta, cpus, memory)
 
+        ncrna_ids = self.extract_kept_ncrna_ids(self.ncrna_cd_hit_est_fasta)
+
+        values = [(1, id) for id in ncrna_ids]
+        with sqlite3.connect(self.sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_statement = ("UPDATE ncrna "
+                             "SET cd_hit_pass = ? "
+                             "WHERE uid = ?")
+            cursor.executemany(sql_statement, values)
+            connection.commit()
+
     @staticmethod
     def extract_ncrna_ids(sqlite_db: Path) -> set[int]:
         print("\nExtracting ncrna ids")
@@ -99,7 +110,7 @@ class CdHitManager:
         cd_hit_command = ["cd-hit-est",
                           "-i", f"{ncrna_cd_hit_est_2d_fasta}",
                           "-o", f"{ncrna_cd_hit_est_fasta}",
-                          "-c", "0.90",
+                          "-c", "0.99",
                           "-T", f"{cpus}",
                           "-M", f"{memory}"]
 
@@ -113,6 +124,14 @@ class CdHitManager:
 
         if p.poll() != 0:
             raise Exception("cd-hit-est did not complete successfully")
+
+    @classmethod
+    def extract_kept_ncrna_ids(cls, ncrna_cd_hit_est_fasta: Path) -> set[int]:
+        ncrna_ids = set()
+        for fasta_seq in cls.fasta_chunker(ncrna_cd_hit_est_fasta):
+            ncrna_id = int(fasta_seq[0][1:])
+            ncrna_ids.add(ncrna_id)
+        return ncrna_ids
 
 if __name__ == "__main__":
     parser = ArgumentParser()
