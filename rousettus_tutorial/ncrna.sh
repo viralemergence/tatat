@@ -112,3 +112,17 @@ singularity exec \
     python3 -u /src/app/ncrna/assign_gene_annotations_to_ncrna.py \
     -blast_results /src/blast_hits/ncrna_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
+
+# Extract core ncRNA
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/ncrna/core_ncrna_extraction.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -ncrna_fasta /src/transcriptome_data/rousettus_ncrna_core.fna \
+    -add_gene_name -transcriptome rousettus
