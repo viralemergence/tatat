@@ -57,3 +57,18 @@ singularity exec \
     -ncrna /src/ncrna \
     -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
     -cpus 20 -memory 60000
+
+# Perform blastn search with candidate ncrna as queries
+# and vertebrata core nt database for subject matches
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TATAT_BLASTDB_DIR:/src/blastdb \
+    --bind $NCRNA_DIR:/src/ncrna \
+    --bind $BLAST_HITS_DIR:/src/blast_hits \
+    $SINGULARITY_IMAGE \
+    blastn -db /src/blastdb/vertebrata_core_nt \
+    -query /src/ncrna/ncrna_cd_hit_est.fna \
+    -out /src/blast_hits/ncrna_hits.tsv \
+    -evalue 0.0001 -num_threads 20 -mt_mode 1 \
+    -outfmt "6 qseqid sacc qlen" -max_target_seqs 1
