@@ -99,3 +99,16 @@ singularity exec \
     -blast_results /src/blast_hits/ncrna_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db \
     -table_name nc_accession_numbers
+
+# Append accession numbers and genes to ncrna metadata sqlite table,
+# and pick "best" sequence per gene, i.e. the "core" ncRNA
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $BLAST_HITS_DIR:/src/blast_hits \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/ncrna/assign_gene_annotations_to_ncrna.py \
+    -blast_results /src/blast_hits/ncrna_hits.tsv \
+    -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
