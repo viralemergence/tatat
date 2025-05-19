@@ -72,3 +72,30 @@ singularity exec \
     -out /src/blast_hits/ncrna_hits.tsv \
     -evalue 0.0001 -num_threads 20 -mt_mode 1 \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 1
+
+# Generate sqlite db "nc_accession_numbers" table
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_nc_acc_num_table
+
+# Generate accession number to gene symbol mapping from blastn results
+# and add to sqlite db as "nc_accession_numbers" table
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --env NCBI_API_KEY=$NCBI_API_KEY \
+    --bind /etc:/etc \
+    --bind $APP_DIR:/src/app \
+    --bind $BLAST_HITS_DIR:/src/blast_hits \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
+    -blast_results /src/blast_hits/ncrna_hits.tsv \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -table_name nc_accession_numbers

@@ -82,6 +82,15 @@ class SqliteDbManager:
                            core_ncrna INTEGER)''')
             connection.commit()
 
+    def create_nc_accession_numbers_table(self) -> None:
+        with sqlite3.connect(self.sqlite_db) as connection:
+            cursor = connection.cursor()
+            cursor.execute("DROP TABLE IF EXISTS nc_accession_numbers")
+            cursor.execute('''CREATE TABLE nc_accession_numbers
+                           (accession_number TEXT NOT NULL PRIMARY KEY,
+                           gene_symbol TEXT NOT NULL)''')
+            connection.commit()
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-sqlite_db_dir", type=str, required=True)
@@ -90,6 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("-create_cds_table", action="store_true", required=False)
     parser.add_argument("-create_acc_num_table", action="store_true", required=False)
     parser.add_argument("-create_ncrna_table", action="store_true", required=False)
+    parser.add_argument("-create_nc_acc_num_table", action="store_true", required=False)
     args = parser.parse_args()
 
     sdm = SqliteDbManager(Path(args.sqlite_db_dir))
@@ -103,3 +113,5 @@ if __name__ == "__main__":
         sdm.create_accession_numbers_table()
     if args.create_ncrna_table:
         sdm.create_ncrna_table()
+    if args.create_nc_acc_num_table:
+        sdm.create_nc_accession_numbers_table()

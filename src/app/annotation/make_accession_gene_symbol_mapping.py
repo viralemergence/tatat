@@ -8,9 +8,10 @@ import subprocess
 from typing import Iterator
 
 class AccessionGeneMapper:
-    def __init__(self, blast_results: Path, sqlite_db: Path) -> None:
+    def __init__(self, blast_results: Path, sqlite_db: Path, table_name: str) -> None:
         self.blast_results = blast_results
         self.sqlite_db = sqlite_db
+        self.table_name = table_name
 
     def run(self, upper: bool=True) -> None:
         # Extract non redundant accession numbers for submission to NCBI
@@ -29,7 +30,7 @@ class AccessionGeneMapper:
             accession_numbers_gene_symbol_mapping = self.upper_case_genes(accession_numbers_gene_symbol_mapping)
 
         with sqlite3.connect(self.sqlite_db) as connection:
-            self.insert_accession_gene_mapping_into_table(connection, accession_numbers_gene_symbol_mapping)
+            self.insert_accession_gene_mapping_into_table(connection, accession_numbers_gene_symbol_mapping, self.table_name)
 
         print(f"Datasets mapping keys count: {len(accession_numbers_gene_symbol_mapping)}")
 
@@ -121,10 +122,11 @@ class AccessionGeneMapper:
 
     @staticmethod
     def insert_accession_gene_mapping_into_table(connection: sqlite3.Connection,
-                                                 accession_numbers_gene_symbol_mapping: dict[str]) -> None:
+                                                 accession_numbers_gene_symbol_mapping: dict[str],
+                                                 table_name: str) -> None:
         cursor = connection.cursor()
         values = [(acc, gene) for acc, gene in accession_numbers_gene_symbol_mapping.items()]
-        sql_statement = "INSERT INTO accession_numbers VALUES (?, ?)"
+        sql_statement = f"INSERT INTO {table_name} VALUES (?, ?)"
         cursor.executemany(sql_statement, values)
         connection.commit()
 
@@ -132,7 +134,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-blast_results", type=str, required=True)
     parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-table_name", type=str, required=True)
     args = parser.parse_args()
 
-    agm = AccessionGeneMapper(Path(args.blast_results), Path(args.sqlite_db))
+    agm = AccessionGeneMapper(Path(args.blast_results), Path(args.sqlite_db), args.table_name)
     agm.run()
