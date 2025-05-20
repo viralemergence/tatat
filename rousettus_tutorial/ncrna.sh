@@ -15,6 +15,7 @@ ENV_FILE=$1
 . $ENV_FILE
 
 mkdir $NCRNA_DIR
+mkdir $BLAST_HITS_DIR
 
 module load singularity
 
@@ -98,7 +99,7 @@ singularity exec \
     python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
     -blast_results /src/blast_hits/ncrna_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -table_name nc_accession_numbers
+    -table_name nc_accession_numbers -rna_type non_coding
 
 # Append accession numbers and genes to ncrna metadata sqlite table,
 # and pick "best" sequence per gene, i.e. the "core" ncRNA
