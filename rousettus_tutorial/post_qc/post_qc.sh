@@ -120,8 +120,8 @@ singularity exec \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -sqlite_db /src/sqlite_db/tatat.db \
     -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
-    -cds_fasta /src/transcriptome_data/cds_core.fna \
-    -add_gene_name
+    -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
+    -add_gene_name -transcriptome rousettus
 
 # Perform pairwise alignments of TATAT core genes to NCBI genes
 singularity exec \
@@ -133,7 +133,7 @@ singularity exec \
     --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
     python3 /src/app/post_annotation_qc/pairwise_align_core_genes.py \
-    -tatat_cds_fasta /src/transcriptome_data/cds_core.fna \
+    -tatat_cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
     -ncbi_cds_fasta /src/cds/cds_from_genomic.fna \
     -outdir /src/gene_comparison -cpus 10
 
@@ -144,11 +144,11 @@ singularity exec \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $POST_QC_DIR/salmon_index:/src/salmon_index \
     $SINGULARITY_IMAGE \
-    salmon index -t /src/transcriptome_data/cds_core.fna \
+    salmon index -t /src/transcriptome_data/rousettus_cds_core.fna \
     -i /src/salmon_index/rousettus_core -p 10
 
 # Calculate salmon counts as array (depending on sample count)
-SALMON_ARRAY_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/post_qc_salmon_array.sh
+SALMON_ARRAY_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/post_qc/post_qc_salmon_array.sh
 sbatch -W $SALMON_ARRAY_SCRIPT $ENV_FILE
 
 # Collate salmon counts
@@ -189,9 +189,9 @@ singularity exec \
     -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -sqlite_db /src/sqlite_db/tatat.db \
     -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
-    -aa_fasta /src/transcriptome_data/aa_core_busco.faa
+    -aa_fasta /src/transcriptome_data/rousettus_aa_core_busco.faa
 
-# Run BUSCO on aa_core_busco.faa
+# Run BUSCO on rousettus_aa_core_busco.faa
 singularity exec \
     --pwd /src/data/busco \
     --no-home \
@@ -199,6 +199,6 @@ singularity exec \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $BUSCO_DATA_DIR:/src/data/busco \
     $SINGULARITY_IMAGE \
-    busco -i /src/transcriptome_data/aa_core_busco.faa \
+    busco -i /src/transcriptome_data/rousettus_aa_core_busco.faa \
     -m proteins -l vertebrata_odb12 -c 10 \
     --opt-out-run-stats

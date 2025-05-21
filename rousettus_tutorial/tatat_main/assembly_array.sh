@@ -6,7 +6,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=alexander.brown@wsu.edu
 #SBATCH --time=1-00:00:00
-#SBATCH --array=0-19:1%10
+#SBATCH --array=0-19:1%20
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
