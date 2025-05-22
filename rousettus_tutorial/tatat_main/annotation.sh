@@ -71,7 +71,8 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
     -blast_results /src/blast_hits/cds_hits.tsv \
-    -sqlite_db /src/sqlite_db/tatat.db
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -table_name accession_numbers -rna_type coding
 
 # Append accession numbers and genes to cds metadata sqlite table,
 # and pick "best" cds per gene, i.e. the "core" genes

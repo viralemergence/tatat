@@ -156,9 +156,8 @@ class CdsAaFastaManager:
         fasta_seq = []
         first_chunk = True
         with fasta_path.open() as inhandle:
-            reader_iterator = reader(inhandle)
-            for line in reader_iterator:
-                line = line[0]
+            for line in inhandle:
+                line = line.strip()
                 if not line.startswith(">"):
                     fasta_seq.append(line)
                 else:

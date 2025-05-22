@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=remi
-#SBATCH --job-name=prep_sqlite_db
+#SBATCH --job-name=tatat
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 #SBATCH --mail-type=ALL
@@ -8,8 +8,8 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=15G
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=2G
 
 ENV_FILE=$1
 . $ENV_FILE
@@ -29,3 +29,15 @@ singularity exec \
     -create_transcripts_table \
     -create_cds_table \
     -create_acc_num_table
+
+# Run assembly phase of TATAT
+ASSEMBLY_ARRAY_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/tatat_main/assembly_array.sh
+sbatch -W $ASSEMBLY_ARRAY_SCRIPT $ENV_FILE
+
+# Run thinning phase of TATAT
+THINNING_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/tatat_main/thinning.sh
+sbatch -W $THINNING_SCRIPT $ENV_FILE
+
+# Run annotation phase of TATAT
+ANNOTATION_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/tatat_main/annotation.sh
+sbatch -W $ANNOTATION_SCRIPT $ENV_FILE

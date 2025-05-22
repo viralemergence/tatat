@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=remi
-#SBATCH --job-name=assembly_thinning
+#SBATCH --job-name=thinning
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 #SBATCH --mail-type=ALL
