@@ -27,7 +27,7 @@ class GeneAssigner:
         print(len(ncrna_id_best_gene_mapping))
 
         # Calculate "core" ncRNA ids as the longest sequence representing a given "gene"
-        core_ncrna_ids = self.calculate_core_ncrna_ids(self.blast_results, ncrna_id_best_gene_mapping)
+        core_ncrna_ids = self.calculate_core_ncrna_ids(self.sqlite_db, ncrna_id_best_gene_mapping)
         print(f"Core ncRNA count: {len(core_ncrna_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to ncRNA metadata table
@@ -112,8 +112,8 @@ class GeneAssigner:
         return ncrna_id_best_gene_mapping
 
     @classmethod
-    def calculate_core_ncrna_ids(cls, blast_results: Path, ncrna_id_best_gene_mapping: dict[dict[str]]) -> set[int]:
-        ncrna_id_len_mapping = cls.extract_ncrna_id_len_mapping(blast_results)
+    def calculate_core_ncrna_ids(cls, sqlite_db: Path, ncrna_id_best_gene_mapping: dict[dict[str]]) -> set[int]:
+        ncrna_id_len_mapping = cls.extract_ncrna_id_len_mapping(sqlite_db)
 
         longest_ncrna = {gene: {"ncrna_id": "", "ncrna_len": 0} for gene in set(ncrna_info["gene"] for ncrna_info in ncrna_id_best_gene_mapping.values())}
         for ncrna_id, ncrna_len in ncrna_id_len_mapping.items():
@@ -130,15 +130,14 @@ class GeneAssigner:
         return core_ncrna_ids
 
     @staticmethod
-    def extract_ncrna_id_len_mapping(blast_results: Path) -> dict[int]:
-        ncrna_id_len_mapping = dict()
-        with blast_results.open() as inhandle:
-            blast_reader = reader(inhandle, delimiter="\t")
-            for line in blast_reader:
-                ncrna_id = int(line[0])
-                ncrna_len = int(line[-1])
-                ncrna_id_len_mapping[ncrna_id] = ncrna_len
-        return ncrna_id_len_mapping
+    def extract_ncrna_id_len_mapping(sqlite_db: Path) -> dict[int]:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = ("SELECT n.uid,t.length "
+                         "FROM ncrna n "
+                         "LEFT OUTER JOIN transcripts t ON n.uid = t.uid")
+            cursor.execute(sql_query)
+            return {row[0]: row[1] for row in cursor.fetchall()}
 
     @staticmethod
     def collate_blast_results_metadata(ncrna_id_accession_numbers_mapping: dict[str],

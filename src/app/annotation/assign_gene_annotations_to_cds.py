@@ -27,7 +27,7 @@ class GeneAssigner:
         print(len(cds_id_best_gene_mapping))
 
         # Calculate "core" CDS ids as the longest CDS representing a given gene
-        core_cds_ids = self.calculate_core_cds_ids(self.blast_results, cds_id_best_gene_mapping)
+        core_cds_ids = self.calculate_core_cds_ids(self.sqlite_db, cds_id_best_gene_mapping)
         print(f"Core CDS count: {len(core_cds_ids)}")
 
         # Collate metadata of interest calculated so far, in preparation for adding to CDS metadata file
@@ -112,8 +112,8 @@ class GeneAssigner:
         return cds_id_best_gene_mapping
 
     @classmethod
-    def calculate_core_cds_ids(cls, blast_results: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[int]:
-        cds_id_len_mapping = cls.extract_cds_id_len_mapping(blast_results)
+    def calculate_core_cds_ids(cls, sqlite_db: Path, cds_id_best_gene_mapping: dict[dict[str]]) -> set[int]:
+        cds_id_len_mapping = cls.extract_cds_id_len_mapping(sqlite_db)
 
         longest_cds = {gene: {"cds_id": "", "cds_len": 0} for gene in set(cds_info["gene"] for cds_info in cds_id_best_gene_mapping.values())}
         for cds_id, cds_len in cds_id_len_mapping.items():
@@ -130,15 +130,12 @@ class GeneAssigner:
         return core_cds_ids
 
     @staticmethod
-    def extract_cds_id_len_mapping(blast_results: Path) -> dict[int]:
-        cds_id_len_mapping = dict()
-        with blast_results.open() as inhandle:
-            blast_reader = reader(inhandle, delimiter="\t")
-            for line in blast_reader:
-                cds_id = int(line[0])
-                cds_len = int(line[-1])
-                cds_id_len_mapping[cds_id] = cds_len
-        return cds_id_len_mapping
+    def extract_cds_id_len_mapping(sqlite_db: Path) -> dict[int]:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = "SELECT uid,length FROM cds"
+            cursor.execute(sql_query)
+            return {row[0]: row[1] for row in cursor.fetchall()}
 
     @staticmethod
     def collate_blast_results_metadata(cds_id_accession_numbers_mapping: dict[str],
