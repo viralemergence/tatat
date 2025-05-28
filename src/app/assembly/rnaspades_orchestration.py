@@ -90,5 +90,5 @@ if __name__ == "__main__":
 
     fapm = FastqAssemblyPathManager(Path(args.fastq_dir), args.unique_identifier, Path(args.assembly_dir), Path(args.collated_dir))
 
-    rm = RnaspadesManager(fapm.ui_fastq_paths, fapm.assembly_dir, fapm.output_collated_path, args.cpus, args.memory)
+    rm = RnaspadesManager(fapm.uid_fastq_paths, fapm.assembly_dir, fapm.output_collated_path, args.cpus, args.memory)
     rm.run()
