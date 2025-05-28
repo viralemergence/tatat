@@ -4,18 +4,18 @@ import subprocess
 
 class FastqAssemblyPathManager:
     def __init__(self, fastq_dir: Path, unique_identifier: str, assembly_dir: Path, collated_dir: Path) -> None:
-        self.ui_fastq_paths = self.extract_ui_fastq_paths(fastq_dir, unique_identifier)
+        self.uid_fastq_paths = self.construct_uid_fastq_paths(fastq_dir, unique_identifier)
         self.assembly_dir = self.generate_assembly_dir(assembly_dir, unique_identifier)
         self.output_collated_path = collated_dir / f"{unique_identifier}.fasta"
 
-    @classmethod
-    def extract_ui_fastq_paths(cls, fastq_dir: Path, unique_identifier: str) -> list[Path]:
-        fastq_paths = cls.get_file_list(fastq_dir)
-        return [path for path in fastq_paths if unique_identifier in path.stem]
-
     @staticmethod
-    def get_file_list(directory: Path) -> list[Path]:
-        return sorted([file for file in directory.iterdir()])
+    def construct_uid_fastq_paths(fastq_dir: Path, uid: str) -> list[Path]:
+        fastq_paths = []
+        for i in [1,2]:
+            potential_fastq = fastq_dir / f"{uid}_r{i}_fastp.fastq.gz"
+            if potential_fastq.exists():
+                fastq_paths.append(potential_fastq)
+        return fastq_paths
 
     @staticmethod
     def generate_assembly_dir(assembly_dir: Path, unique_identifier: str) -> Path:

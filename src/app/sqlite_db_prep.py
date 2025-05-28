@@ -22,8 +22,10 @@ class SqliteDbManager:
         cursor = connection.cursor()
         cursor.execute("DROP TABLE IF EXISTS samples")
         cursor.execute('''CREATE TABLE samples
-                        (uid TEXT NOT NULL PRIMARY KEY,
-                        transcriptome TEXT NOT NULL)''')
+                       (uid TEXT NOT NULL PRIMARY KEY,
+                       transcriptome TEXT NOT NULL,
+                       r1_reads TEXT,
+                       r2_reads TEXT)''')
 
         for column in sample_metadata.columns:
             if column not in ["uid", "transcriptome"]:

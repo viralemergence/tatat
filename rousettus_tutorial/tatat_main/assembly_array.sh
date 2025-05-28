@@ -39,11 +39,13 @@ singularity exec \
     --bind $APP_DIR:/src/app \
     --bind $SRA_DOWNLOAD_DIR:/src/data/download_dir \
     --bind $SRA_COLLATE_DIR:/src/data/collate_dir \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/assembly/sra_read_download.py \
     -sra_number $SRA_NUMBER \
     -download_dir /src/data/download_dir \
-    -collate_dir /src/data/collate_dir
+    -collate_dir /src/data/collate_dir \
+    -sqlite_db /src/sqlite_db/tatat.db
 
 singularity exec \
     --pwd /src \
@@ -51,11 +53,13 @@ singularity exec \
     --bind $APP_DIR:/src/app \
     --bind $SRA_COLLATE_DIR:/src/data/fastq_dir \
     --bind $FASTQ_TRIMMED_DIR:/src/data/trimmed \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/assembly/fastp_orchestration.py \
-    -i /src/data/fastq_dir \
-    -o /src/data/trimmed \
-    -u $SRA_NUMBER -r1a $R1_ADAPTER -r2a $R2_ADAPTER --cpus 10
+    -fastq_dir /src/data/fastq_dir \
+    -outdir /src/data/trimmed \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -uid $SRA_NUMBER -r1_adapter $R1_ADAPTER -r2_adapter $R2_ADAPTER -cpus 10
 
 singularity exec \
     --pwd /src \

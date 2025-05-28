@@ -1,27 +1,40 @@
 from argparse import ArgumentParser
 from pathlib import Path
+import sqlite3
 import subprocess
 
 class FastqPathManager:
-    def __init__(self, fastq_dir: Path, unique_identifier: str, outdir: Path) -> None:
-        self.ui_fastq_paths = self.extract_ui_fastq_paths(fastq_dir, unique_identifier)
-        self.output_fastq_paths = self.set_output_paths(self.ui_fastq_paths, outdir)
-
-    @classmethod
-    def extract_ui_fastq_paths(cls, fastq_dir: Path, unique_identifier: str) -> list[Path]:
-        fastq_paths = cls.get_file_list(fastq_dir)
-        return [path for path in fastq_paths if unique_identifier in path.stem]
+    def __init__(self, fastq_dir: Path, sqlite_db : Path, uid: str, outdir: Path) -> None:
+        fastq_file_names = self.extract_file_names(sqlite_db, uid)
+        self.uid_fastq_paths = self.construct_uid_fastq_paths(fastq_dir, fastq_file_names)
+        self.output_fastq_paths = self.set_output_paths(self.uid_fastq_paths, outdir, uid)
 
     @staticmethod
-    def get_file_list(directory: Path) -> list[Path]:
-        return sorted([file for file in directory.iterdir()])
+    def extract_file_names(sqlite_db: Path, uid: str) -> list[str]:
+        with sqlite3.connect(sqlite_db) as connection:
+            cursor = connection.cursor()
+            sql_query = ("SELECT uid,r1_reads,r2_reads "
+                         "FROM samples "
+                         f"WHERE uid = '{uid}'")
+            cursor.execute(sql_query)
+            return {row[0]: [row[1], row[2]] for row in cursor.fetchall()}[uid]
 
     @staticmethod
-    def set_output_paths(input_fastqs: list[Path], outdir: Path) -> list[Path]:
+    def construct_uid_fastq_paths(fastq_dir: Path, fastq_file_names: list[str]) -> list[Path]:
+        uid_fastq_paths = []
+        for file_name in fastq_file_names:
+            if file_name is None:
+                continue
+            uid_fastq_path = fastq_dir / file_name
+            uid_fastq_paths.append(uid_fastq_path)
+        return uid_fastq_paths
+
+    @staticmethod
+    def set_output_paths(input_fastqs: list[Path], outdir: Path, uid: str) -> list[Path]:
         output_fastqs = []
-        for fastq in input_fastqs:
-            outpath_stem = fastq.stem.replace(".fastq", "")
-            outpath = outdir / f"{outpath_stem}_fastp.fastq.gz"
+        for i, fastq in enumerate(input_fastqs, 1):
+            out_file_name = f"{uid}_r{i}_fastp.fastq.gz"
+            outpath = outdir / out_file_name
             output_fastqs.append(outpath)
         return output_fastqs
 
@@ -56,15 +69,16 @@ class FastpManager:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-i", "--fastq_dir", type=str, required=True)
-    parser.add_argument("-o", "--outdir", type=str, required=True)
-    parser.add_argument("-u", "--unique_identifier", type=str, required=True)
-    parser.add_argument("-r1a", "--r1_adapter", type=str, required=True)
-    parser.add_argument("-r2a", "--r2_adapter", type=str, required=True)
-    parser.add_argument("-c", "--cpus", type=int, default=3, required=False)
+    parser.add_argument("-fastq_dir", type=str, required=True)
+    parser.add_argument("-outdir", type=str, required=True)
+    parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-uid", type=str, required=True)
+    parser.add_argument("-r1_adapter", type=str, required=True)
+    parser.add_argument("-r2_adapter", type=str, required=True)
+    parser.add_argument("-cpus", type=int, default=3, required=False)
     args = parser.parse_args()
 
-    fpm = FastqPathManager(Path(args.fastq_dir), args.unique_identifier, Path(args.outdir))
+    fpm = FastqPathManager(Path(args.fastq_dir), Path(args.sqlite_db), args.uid, Path(args.outdir))
 
-    fm = FastpManager(fpm.ui_fastq_paths, fpm.output_fastq_paths)
+    fm = FastpManager(fpm.uid_fastq_paths, fpm.output_fastq_paths)
     fm.run_fastp(args.r1_adapter, args.r2_adapter, args.cpus)
