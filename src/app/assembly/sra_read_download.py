@@ -44,12 +44,11 @@ class SraReadDownload:
     @staticmethod
     def update_samples_table_read_file_names(sqlite_db: Path, accession_number: str,
                                              fastq_files: list[Path]) -> None:
-
         with sqlite3.connect(sqlite_db) as connection:
             cursor = connection.cursor()
             for i, fastq_file in enumerate(fastq_files, 1):
-                sql_statement = f"UPDATE samples SET r{i}_reads = {fastq_file} WHERE uid = {accession_number}"
-                cursor.execute(sql_statement)
+                sql_statement = f"UPDATE samples SET r{i}_reads = ? WHERE uid = ?"
+                cursor.execute(sql_statement, (fastq_file.name, accession_number))
                 connection.commit()
 
 if __name__ == "__main__":
