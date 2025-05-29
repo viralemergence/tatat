@@ -28,7 +28,7 @@ class SqliteDbManager:
                        r2_reads TEXT)''')
 
         for column in sample_metadata.columns:
-            if column not in ["uid", "transcriptome"]:
+            if column not in ["uid", "transcriptome", "r1_reads", "r2_reads"]:
                 cursor.execute(f"ALTER TABLE samples ADD COLUMN {column} TEXT")
         connection.commit()
 
