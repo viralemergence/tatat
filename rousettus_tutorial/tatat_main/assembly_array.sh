@@ -15,6 +15,8 @@
 ENV_FILE=$1
 . $ENV_FILE
 
+MEM_IN_GB=$((SLURM_MEM_PER_NODE / 1024))
+
 mkdir $SRA_DOWNLOAD_DIR
 mkdir $SRA_COLLATE_DIR
 mkdir $FASTQ_TRIMMED_DIR
@@ -59,7 +61,7 @@ singularity exec \
     -fastq_dir /src/data/fastq_dir \
     -outdir /src/data/trimmed \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -uid $SRA_NUMBER -r1_adapter $R1_ADAPTER -r2_adapter $R2_ADAPTER -cpus 10
+    -uid $SRA_NUMBER -r1_adapter $R1_ADAPTER -r2_adapter $R2_ADAPTER -cpus $SLURM_CPUS_PER_TASK
 
 singularity exec \
     --pwd /src \
@@ -73,4 +75,4 @@ singularity exec \
     -fastq_dir /src/data/trimmed \
     -assembly_dir /src/data/assembly \
     -collated_dir /src/data/collated \
-    -unique_identifier $SRA_NUMBER -cpus 10 -memory 49
+    -unique_identifier $SRA_NUMBER -cpus $SLURM_CPUS_PER_TASK -memory $MEM_IN_GB
