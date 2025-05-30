@@ -11,7 +11,7 @@ class FastqPathManager:
 
     @staticmethod
     def extract_file_names(sqlite_db: Path, uid: str) -> list[str]:
-        with sqlite3.connect(sqlite_db) as connection:
+        with sqlite3.connect(sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_query = ("SELECT uid,r1_reads,r2_reads "
                          "FROM samples "

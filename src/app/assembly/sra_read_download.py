@@ -44,7 +44,7 @@ class SraReadDownload:
     @staticmethod
     def update_samples_table_read_file_names(sqlite_db: Path, accession_number: str,
                                              fastq_files: list[Path]) -> None:
-        with sqlite3.connect(sqlite_db) as connection:
+        with sqlite3.connect(sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             for i, fastq_file in enumerate(fastq_files, 1):
                 sql_statement = f"UPDATE samples SET r{i}_reads = ? WHERE uid = ?"
