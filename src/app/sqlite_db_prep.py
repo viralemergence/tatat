@@ -50,7 +50,7 @@ class SqliteDbManager:
             cursor = connection.cursor()
             cursor.execute("DROP TABLE IF EXISTS cds")
             cursor.execute('''CREATE TABLE cds
-                           (uid INTEGER NOT NULL PRIMARY KEY,
+                           (uid INTEGER PRIMARY KEY,
                            transcript_uid INTEGER NOT NULL,
                            evigene_class TEXT NOT NULL,
                            strand TEXT NOT NULL,
