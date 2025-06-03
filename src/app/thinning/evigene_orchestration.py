@@ -37,7 +37,7 @@ class InputFastaManager:
     @staticmethod
     def extract_filtered_transcript_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
         print(f"\nExtracting transcript ids that belong to transcriptome: {transcriptome}")
-        with sqlite3.connect(sqlite_db) as connection:
+        with sqlite3.connect(sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_query = ("SELECT t.uid "
                          "FROM transcripts t "
@@ -49,7 +49,7 @@ class InputFastaManager:
     @staticmethod
     def extract_transcript_prefix_mapping(prefix_column: str, sqlite_db: Path) -> dict[str]:
         print("Extracting transcript id to prefix mapping")
-        with sqlite3.connect(sqlite_db) as connection:
+        with sqlite3.connect(sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_query = f"SELECT uid,{prefix_column} FROM transcripts"
             cursor.execute(sql_query)
@@ -192,9 +192,15 @@ class EvigeneManager:
                         # This IndexError appears to be entirely driven by transcript headers in the
                         # drop file to which class info is not added. However, not all the headers
                         # are wrong, so the file is still processed
-                        transcript_class = ""
-                        okay_drop_flag = ""
-                    evigene_pass = 1 if okay_drop_flag == "okay" else 0
+                        transcript_class = None
+                        okay_drop_flag = None
+
+                    if okay_drop_flag is None:
+                        evigene_pass = None
+                    elif okay_drop_flag == "okay":
+                        evigene_pass = 1
+                    else:
+                        evigene_pass = 0
 
                     transcript_classes[sequence_id] = {"transcript_class": transcript_class,
                                                     "evigene_pass": evigene_pass
@@ -219,11 +225,9 @@ class CdsMetadataManager:
     def run(self) -> None:
         cds_paths = self.set_cds_paths(self.outdir, self.assembly_fasta)
         cds_metadata = self.extract_cds_metadata(cds_paths)
-        transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(cds_metadata)
 
-        with sqlite3.connect(self.sqlite_db) as connection:
+        with sqlite3.connect(self.sqlite_db, timeout=600) as connection:
             self.insert_cds_info_to_cds_table(connection, cds_metadata)
-            self.update_transcripts_table_with_cds_ids(connection, transcript_cds_id_mapping)
 
     @classmethod
     def set_cds_paths(cls, outdir: Path, assembly_fasta_path: Path) -> list[Path]:
@@ -243,7 +247,6 @@ class CdsMetadataManager:
     def extract_cds_metadata(cls, cds_paths: list[Path]) -> list[dict[Any]]:
         cds_metadata = list()
 
-        cds_id = 0
         for cds_path in cds_paths:
             with cds_path.open() as inhandle:
                 for line in inhandle:
@@ -254,7 +257,6 @@ class CdsMetadataManager:
                     except IndexError:
                         continue
 
-                    cds_id += 1
                     transcript_id = cls.extract_transcript_id(line)
                     evigene_class = cls.extract_evigene_class(line)
                     strand = cls.extract_strand(line)
@@ -263,7 +265,6 @@ class CdsMetadataManager:
 
                     cds_metadata.append(
                         {
-                        "cds_id": cds_id,
                         "transcript_id": transcript_id,
                         "evigene_class": evigene_class,
                         "strand": strand,
@@ -302,21 +303,32 @@ class CdsMetadataManager:
         return start, end
 
     @staticmethod
-    def extract_transcript_cds_id_mapping(cds_metadata: list[dict[Any]]) -> dict[str]:
-        transcript_cds_id_mapper = defaultdict(list)
-        for data in cds_metadata:
-            cds_id = str(data["cds_id"])
-            transcript_id = data["transcript_id"]
-            transcript_cds_id_mapper[transcript_id].append(cds_id)
-        return {transcript_id: ";".join(cds_ids) for transcript_id, cds_ids in transcript_cds_id_mapper.items()}
-
-    @staticmethod
     def insert_cds_info_to_cds_table(connection: sqlite3.Connection, cds_metadata: list[dict[Any]]) -> None:
         values = [tuple(data.values()) for data in cds_metadata]
         cursor = connection.cursor()
-        sql_statement = '''INSERT INTO cds (uid, transcript_uid, evigene_class, strand, start, end, length) VALUES (?,?,?,?,?,?,?)'''
+        sql_statement = ("INSERT INTO cds "
+                         "(transcript_uid, evigene_class, strand, start, end, length) "
+                         "VALUES (?,?,?,?,?,?)")
         cursor.executemany(sql_statement, values)
         connection.commit()
+
+    def run_update_transcript_cds_ids(self) -> None:
+        with sqlite3.connect(self.sqlite_db, timeout=600) as connection:
+            transcript_cds_id_mapping = self.extract_transcript_cds_id_mapping(connection)
+            self.update_transcripts_table_with_cds_ids(connection, transcript_cds_id_mapping)
+
+    @staticmethod
+    def extract_transcript_cds_id_mapping(connection: sqlite3.Connection) -> dict[str]:
+        cursor = connection.cursor()
+        sql_query = f"SELECT uid,transcript_uid FROM cds"
+        cursor.execute(sql_query)
+        cds_transcript_id_mapping = {row[0]: row[1] for row in cursor.fetchall()}
+
+        transcript_cds_id_mapper = defaultdict(list)
+        for cds_id, transcript_id in cds_transcript_id_mapping.items():
+            cds_id = str(cds_id)
+            transcript_cds_id_mapper[transcript_id].append(cds_id)
+        return {transcript_id: ";".join(cds_ids) for transcript_id, cds_ids in transcript_cds_id_mapper.items()}
 
     @staticmethod
     def update_transcripts_table_with_cds_ids(connection: sqlite3.Connection,
@@ -341,6 +353,7 @@ if __name__ == "__main__":
     parser.add_argument("-minaa", type=int, required=False)
     parser.add_argument("-run_transcript_metadata_appender", action="store_true", required=False)
     parser.add_argument("-run_cds_and_metadata", action="store_true", required=False)
+    parser.add_argument("-update_transcript_cds_ids", action="store_true", required=False)
     args = parser.parse_args()
 
     outdir = Path(args.outdir) / args.transcriptome
@@ -376,5 +389,10 @@ if __name__ == "__main__":
         print("\nRunning CDS and metadata extractor")
         cmm = CdsMetadataManager(assembly_fasta, outdir, Path(args.sqlite_db))
         cmm.run()
+
+    if args.update_transcript_cds_ids:
+        print("\nUpdating transcripts table with CDS ids")
+        cmm = CdsMetadataManager(assembly_fasta, outdir, Path(args.sqlite_db))
+        cmm.run_update_transcript_cds_ids()
 
     print("\nFinished\n")

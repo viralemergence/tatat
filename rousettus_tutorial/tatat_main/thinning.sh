@@ -62,5 +62,17 @@ singularity exec \
     -outdir /src/evigene_output \
     -sqlite_db /src/sqlite_db/tatat.db \
     -transcriptome rousettus -prefix_column sample_uid \
-    -run_evigene -cpus 10 -mem 59000 -phetero 2 -minaa 99 \
+    -run_evigene -cpus $SLURM_CPUS_PER_TASK -mem $SLURM_MEM_PER_NODE -phetero 2 -minaa 99 \
     -run_transcript_metadata_appender -run_cds_and_metadata
+
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta holder -outdir holder \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -transcriptome holder -prefix_column holder \
+    -update_transcript_cds_ids

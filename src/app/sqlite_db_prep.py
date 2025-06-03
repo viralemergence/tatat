@@ -22,11 +22,13 @@ class SqliteDbManager:
         cursor = connection.cursor()
         cursor.execute("DROP TABLE IF EXISTS samples")
         cursor.execute('''CREATE TABLE samples
-                        (uid TEXT NOT NULL PRIMARY KEY,
-                        transcriptome TEXT NOT NULL)''')
+                       (uid TEXT NOT NULL PRIMARY KEY,
+                       transcriptome TEXT NOT NULL,
+                       r1_reads TEXT,
+                       r2_reads TEXT)''')
 
         for column in sample_metadata.columns:
-            if column not in ["uid", "transcriptome"]:
+            if column not in ["uid", "transcriptome", "r1_reads", "r2_reads"]:
                 cursor.execute(f"ALTER TABLE samples ADD COLUMN {column} TEXT")
         connection.commit()
 
@@ -48,7 +50,7 @@ class SqliteDbManager:
             cursor = connection.cursor()
             cursor.execute("DROP TABLE IF EXISTS cds")
             cursor.execute('''CREATE TABLE cds
-                           (uid INTEGER NOT NULL PRIMARY KEY,
+                           (uid INTEGER PRIMARY KEY,
                            transcript_uid INTEGER NOT NULL,
                            evigene_class TEXT NOT NULL,
                            strand TEXT NOT NULL,
