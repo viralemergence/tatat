@@ -33,7 +33,8 @@ SRA_NUMBER=$(singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sample_metadata_extraction.py \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -array_index $SLURM_ARRAY_TASK_ID)
+    -array_index $SLURM_ARRAY_TASK_ID \
+    -return_uid)
 
 singularity exec \
     --pwd /src \
