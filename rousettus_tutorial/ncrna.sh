@@ -40,7 +40,8 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/ncrna/ncrna_initial_filtering.py \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna
+    -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -transcriptome rousettus
 
 # Remove ncrna candidates that map to core cds (via CD-HIT-EST-2D)
 # and then remove ncrna sequence duplicates (via CD-HIT-EST)

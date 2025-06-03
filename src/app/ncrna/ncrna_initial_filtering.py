@@ -9,27 +9,29 @@ class NcrnaInitialManager:
         self.sqlite_db = sqlite_db
         self.transcripts_fasta = transcripts_fasta
 
-    def run(self) -> None:
-        transcript_ids = self.extract_length_and_gene_filtered_transcript_ids(self.sqlite_db)
+    def run(self, transcriptome: str) -> None:
+        transcript_ids = self.extract_length_and_gene_filtered_transcript_ids(self.sqlite_db, transcriptome)
         transcript_ids = self.remove_ids_of_duplicate_sequences(self.transcripts_fasta, transcript_ids)
         print(len(transcript_ids))
 
         values = [(id,) for id in transcript_ids]
-        with sqlite3.connect(self.sqlite_db) as connection:
+        with sqlite3.connect(self.sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_statement = ("INSERT INTO ncrna (uid) VALUES (?)")
             cursor.executemany(sql_statement, values)
             connection.commit()
 
     @staticmethod
-    def extract_length_and_gene_filtered_transcript_ids(sqlite_db: Path) -> set[int]:
+    def extract_length_and_gene_filtered_transcript_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
         print("\nExtracting filtered transcript ids")
-        with sqlite3.connect(sqlite_db) as connection:
+        with sqlite3.connect(sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_query = ("SELECT t.uid "
                          "FROM transcripts t "
                          "LEFT OUTER JOIN cds c ON t.uid = c.transcript_uid "
-                         "WHERE t.length < 5000 AND c.gene_symbol IS NULL")
+                         "LEFT OUTER JOIN samples s ON t.sample_uid = s.uid "
+                         "WHERE t.length < 5000 AND c.gene_symbol IS NULL "
+                         f"AND s.transcriptome = '{transcriptome}'")
             cursor.execute(sql_query)
             return {row[0] for row in cursor.fetchall()}
 
@@ -87,7 +89,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-sqlite_db", type=str, required=True)
     parser.add_argument("-transcripts_fasta", type=str, required=True)
+    parser.add_argument("-transcriptome", type=str, required=True)
     args = parser.parse_args()
 
     nim = NcrnaInitialManager(Path(args.sqlite_db), Path(args.transcripts_fasta))
-    nim.run()
+    nim.run(args.transcriptome)
