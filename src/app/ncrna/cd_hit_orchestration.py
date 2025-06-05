@@ -5,18 +5,20 @@ import subprocess
 from typing import Iterator
 
 class CdHitManager:
-    def __init__(self, sqlite_db: Path, transcripts_fasta: Path, ncrna_dir: Path, cds_fasta: Path) -> None:
+    def __init__(self, sqlite_db: Path, transcriptome: str,
+                 transcripts_fasta: Path, ncrna_dir: Path, cds_fasta: Path) -> None:
         self.sqlite_db = sqlite_db
+        self.transcriptome = transcriptome
         self.transcripts_fasta = transcripts_fasta
         self.ncrna_dir = ncrna_dir
         self.cds_fasta = cds_fasta
 
-        self.temp_ncrna_fasta = ncrna_dir / "temp_ncrna.fna"
-        self.ncrna_cd_hit_est_2d_fasta = ncrna_dir / "ncrna_cd_hit_est_2d.fna"
-        self.ncrna_cd_hit_est_fasta = ncrna_dir / "ncrna_cd_hit_est.fna"
+        self.temp_ncrna_fasta = ncrna_dir / f"{self.transcriptome}_temp_ncrna.fna"
+        self.ncrna_cd_hit_est_2d_fasta = ncrna_dir / f"{self.transcriptome}_ncrna_cd_hit_est_2d.fna"
+        self.ncrna_cd_hit_est_fasta = ncrna_dir / f"{self.transcriptome}_ncrna_cd_hit_est.fna"
 
     def run(self, cpus: int, memory: int) -> None:
-        ncrna_ids = self.extract_ncrna_ids(self.sqlite_db)
+        ncrna_ids = self.extract_ncrna_ids(self.sqlite_db, self.transcriptome)
         self.write_temporary_ncrna_fasta(ncrna_ids, self.transcripts_fasta, self.temp_ncrna_fasta)
         self.run_cd_hit_est_2d(self.cds_fasta, self.temp_ncrna_fasta, self.ncrna_cd_hit_est_2d_fasta, cpus, memory)
         self.run_cd_hit_est(self.ncrna_cd_hit_est_2d_fasta, self.ncrna_cd_hit_est_fasta, cpus, memory)
@@ -24,7 +26,7 @@ class CdHitManager:
         ncrna_ids = self.extract_kept_ncrna_ids(self.ncrna_cd_hit_est_fasta)
 
         values = [(1, id) for id in ncrna_ids]
-        with sqlite3.connect(self.sqlite_db) as connection:
+        with sqlite3.connect(self.sqlite_db, timeout=600) as connection:
             cursor = connection.cursor()
             sql_statement = ("UPDATE ncrna "
                              "SET cd_hit_pass = ? "
@@ -33,11 +35,15 @@ class CdHitManager:
             connection.commit()
 
     @staticmethod
-    def extract_ncrna_ids(sqlite_db: Path) -> set[int]:
+    def extract_ncrna_ids(sqlite_db: Path, transcriptome: str) -> set[int]:
         print("\nExtracting ncrna ids")
         with sqlite3.connect(sqlite_db) as connection:
             cursor = connection.cursor()
-            sql_query = ("SELECT uid FROM ncrna")
+            sql_query = ("SELECT n.uid "
+                         "FROM ncrna n "
+                         "LEFT OUTER JOIN transcripts t ON n.uid = t.uid "
+                         "LEFT OUTER JOIN samples s ON t.sample_uid = s.uid "
+                         f"WHERE s.transcriptome = '{transcriptome}'")
             cursor.execute(sql_query)
             return {row[0] for row in cursor.fetchall()}
 
@@ -136,6 +142,7 @@ class CdHitManager:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-sqlite_db", type=str, required=True)
+    parser.add_argument("-transcriptome", type=str, required=True)
     parser.add_argument("-transcripts_fasta", type=str, required=True)
     parser.add_argument("-ncrna_dir", type=str, required=True)
     parser.add_argument("-cds_fasta", type=str, required=True)
@@ -143,5 +150,6 @@ if __name__ == "__main__":
     parser.add_argument("-memory", type=int, default=1_000, required=False)
     args = parser.parse_args()
 
-    chm = CdHitManager(Path(args.sqlite_db), Path(args.transcripts_fasta), Path(args.ncrna_dir), Path(args.cds_fasta))
+    chm = CdHitManager(Path(args.sqlite_db), args.transcriptome,
+                       Path(args.transcripts_fasta), Path(args.ncrna_dir), Path(args.cds_fasta))
     chm.run(args.cpus, args.memory)
