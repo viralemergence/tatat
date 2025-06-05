@@ -44,7 +44,7 @@ singularity exec \
     -transcriptome rousettus
 
 # Remove ncrna candidates that map to core cds (via CD-HIT-EST-2D)
-# and then remove ncrna sequence duplicates (via CD-HIT-EST)
+# and then remove ncrna sequence duplicates/fragments (via CD-HIT-EST)
 singularity exec \
     --pwd /src \
     --no-home \
@@ -55,10 +55,25 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/ncrna/cd_hit_orchestration.py \
     -sqlite_db /src/sqlite_db/tatat.db \
+    -transcriptome rousettus \
     -transcripts_fasta /src/transcriptome_data/raw_transcriptome.fna \
     -ncrna /src/ncrna \
     -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
-    -cpus 20 -memory 60000
+    -cpus $SLURM_CPUS_PER_TASK -memory $SLURM_MEM_PER_NODE
+
+# Extract ncRNA for BLAST search
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $APP_DIR:/src/app \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    --bind $NCRNA_DIR:/src/ncrna \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/ncrna/blast_ncrna_extraction.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -ncrna_fasta /src/ncrna/blast_ncrna.fna
 
 # Perform blastn search with candidate ncrna as queries
 # and vertebrata core nt database for subject matches
@@ -70,9 +85,9 @@ singularity exec \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
     $SINGULARITY_IMAGE \
     blastn -db /src/blastdb/vertebrata_core_nt \
-    -query /src/ncrna/ncrna_cd_hit_est.fna \
+    -query /src/ncrna/blast_ncrna.fna \
     -out /src/blast_hits/ncrna_hits.tsv \
-    -evalue 0.0001 -num_threads 20 -mt_mode 1 \
+    -evalue 0.0001 -num_threads $SLURM_CPUS_PER_TASK -mt_mode 1 \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 1
 
 # Generate sqlite db "nc_accession_numbers" table
