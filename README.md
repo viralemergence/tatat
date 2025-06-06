@@ -1,5 +1,4 @@
-<img src="https://github.com/user-attachments/assets/481006bc-314b-4852-9148-9ec87a86de19" width="50%">
-
+<img src="https://github.com/user-attachments/assets/c743b2a9-bb2c-4fac-802e-0809aa08ebfd"><br/>
 # Transcriptome Assembly, Thinning, and Annotation Tool
 
 Placeholder text
