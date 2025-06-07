@@ -16,7 +16,7 @@ However, it is recommended that the publically available TATAT Docker image be u
 ### Hardware Requirements
 *De novo* assembly remains a resource-intensive computation. We observed that to complete the rousettus assemblies described in the [rousettus_tutorial](rousettus_tutorial) folder, 10 CPUs and 50 Gb RAM were required for the most demanding assembly generation. Similarly, the thinning step required 10 CPUs and 60 Gb RAM, and the annotation step required 20 CPUs and 60 Gb RAM. The RAM values listed are definitively required, but the CPUs are not; they just make the overall runtime bearable.
 <br><br>
-Furthermore, each of these steps generally requires hours to run, with the assemblies taking the longest. By running the rousettus assemblies in parallel, and using 100 CPUs and 500 Gb on a HPC, they were able to finish in ~3.5 hours. To run sequentially could become at least 1 day of runtime.
+Furthermore, each of these steps generally requires hours to run, with the assemblies taking the longest. By running the rousettus assemblies in parallel, and using 100 CPUs and 500 Gb RAM on a HPC, they were able to finish in ~3.5 hours. To run sequentially could become at least 1 day of runtime.
 <br><br>
 Consequently, while it is possible to run TATAT locally on a computer, it is not recommended. It would be better to run on a HPC, or cloud-based environment like AWS or GCP.
 <br><br>
