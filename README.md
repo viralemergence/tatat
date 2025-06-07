@@ -18,7 +18,3 @@ A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial)
 - All the bash scripts provided require the .env file to be filled out correctly. If you wish to use them, fill out the .env file before running anything, otherwise the scripts will throw errors.
 - The annotation step requires a BLAST database. The vertebrate database used in the initial publication is available at: url_address. However, if a different or updated database is desired, follow the steps outlined in the rousettus_tutorial.
 - The default assembly tools include fastp and rnaSPAdes, and the default thinning tool is EvidentialGenes. TATAT has been designed to allow other tools to be used at these steps and then fed into the workflow. However, currently no other tools have been tested and we cannot guarantee the workflow will function as expected. Therefore, users are encouraged to use the bioinformatic tools already provided in the TATAT Docker image.
-
-<br><br><br><br><br>
-Other text that might be used later:
-Consequently, the entire workflow may be run with a single bash script. However, the processes are also decoupled, so that a user may choose to only run part of the workflow or introduce their own preferenced tools at different steps (e.g. using Trinity instead of rnaSPAdes for de novo assembly).
