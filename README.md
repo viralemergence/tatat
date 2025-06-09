@@ -18,7 +18,7 @@ However, it is recommended that the publically available TATAT Docker image be u
 <br><br>
 Furthermore, each of these steps generally requires hours to run, with the assemblies taking the longest. By running the rousettus assemblies in parallel, and using 100 CPUs and 500 Gb RAM on a HPC, they were able to finish in ~3.5 hours. To run sequentially could become at least 1 day of runtime.
 <br><br>
-Consequently, while it is possible to run TATAT locally on a computer, it is not recommended. It would be better to run on a HPC, or cloud-based environment like AWS or GCP.
+Consequently, while it is theoretically possible to run TATAT locally on a computer, it is not recommended. It would be better to run on a HPC, or cloud-based environment like AWS or GCP.
 <br><br>
 ### Workflow Overview
 The following diagram shows an overview of the intended workflow for TATAT and which tools are used to facilitate each step. <br>
