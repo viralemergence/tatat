@@ -34,3 +34,10 @@ this file is completed. Even if the directories don't exist, the bash scripts in
 Many of the stages in TATAT run for hours and attempting to run the code with "live" sessions via tools like ssh is not generally recommended, as loss of the connection may terminate the process or make it difficult to tell when the process has completed. Likewise, generating assemblies sequentially via a ssh connection could take days, whereas we observed with the rousettus data performing assembly in parallel completed in ~3.5 hours.
 <br><br>
 Consequently, we strongly recommend using a job scheduler to launch the TATAT bash scripts and use the job scheduler SLURM in this tutorial. We will briefly cover aspects of SLURM, but an in-depth discussion is beyond the scope of this tutorial, and may be irrelevant if a different job scheduler is used. However, if a user has limited resources or feels comfortable running TATAT just through the command line, it is not necessary to use a job scheduler.
+
+#### The BLAST Database
+The final annotation stage of TATAT requires a BLAST database. For this tutorial the NCBI's "core_nt" database was downloaded and all vertebrata sequences extracted and built into a new BLAST database. The user may follow the code in [make_vertebrata_core_nt_blastdb.sh](make_vertebrata_core_nt_blastdb.sh) to generate their own version, however, our version is available at url_address. If a user wishes to generate their own version for this tutorial, note that the NCBI constantly updates their database and so final results may differ slightly. If using the .env file, the path to this database will need to be stored in:
+```
+TATAT_BLASTDB_DIR="/path/to/dir"
+```
+Lastly, outside of this tutorial the same methodology could be used to generate BLAST databases for different clades, organisms, sequences, etc.
