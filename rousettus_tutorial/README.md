@@ -15,8 +15,8 @@ the following diagram:
 
 In this tutorial, TATAT will first be used to download the sequencing data from the Sequencing Read Archive (SRA), remove sequencing errors and adaptors using FASTP, assemble the reads into contigs via *de novo* assembly with rnaSPAdes, thin out the excess contigs, then annotate the remaining contigs and select which best represent each coding gene. Then the initial set of contigs will be screened for matches to the coding genes, and the remaining contigs annotated for ncRNA genes.
 
-### TATAT "Core" Coding Genes
-It should be noted that TATAT works best either in HPC or cloud based environments. Unless your local machine meets the [hardware requirements](https://github.com/viralemergence/tatat/blob/readme/README.md#hardware-requirements), do not attempt to run locally. Once the Docker image (or sif) has been downloaded or generated (see [Acquiring TATAT](https://github.com/viralemergence/tatat/blob/readme/README.md#acquiring-tatat)), it can be run via bash scripts or on the command line. We will briefly discuss some of the preparation necessary to run TATAT:
+### TATAT "Core" Coding Genes: Preparation
+It should be noted that TATAT works best either in HPC or cloud based environments. Unless your local machine meets the [hardware requirements](https://github.com/viralemergence/tatat/blob/readme/README.md#hardware-requirements), do not attempt to run locally. Once the Docker image (or sif) has been downloaded or generated (see [Acquiring TATAT](https://github.com/viralemergence/tatat/blob/readme/README.md#acquiring-tatat)), it can be run via bash scripts or on the command line. We will briefly discuss some of the additional preparation necessary to run TATAT as follows:
 
 #### The .env File
 Since TATAT runs in a virtual container, it is necessary to explicitly grant access to directories and files on the host system. When running TATAT via Docker or Singularity, those file paths would have to be typed out repeatedly in the commands. In order to simplify providing that information, the tutorial uses an .env file which stores all the directory and file paths as environmental variables. An example file can be found at [.env-example](../.env-example). Likewise, there are some additional variables that are convenient for storing potentially sensitive information, like the NCBI API key. E.g.:
@@ -41,3 +41,6 @@ The final annotation stage of TATAT requires a BLAST database. For this tutorial
 TATAT_BLASTDB_DIR="/path/to/dir"
 ```
 Lastly, outside of this tutorial the same methodology could be used to generate BLAST databases for different clades, organisms, sequences, etc.
+
+### TATAT "Core" Coding Genes: Running The Whole Thing
+If the .env has been correctly filled out, the BLAST database is prepared, the job scheduler used is SLURM, and all the bash scripts have been correctly modified to use whichever partition is avialble to the user, at this point the entire TATAT workflow can be run using [tatat.sh](tatat.sh). However, it is likely that there will be some minor errors. Consequently, for the purposes of this tutorial, we will walk through the individual stages of TATAT, which comprise of Assembly, Thinning, and Annotation.
