@@ -19,4 +19,18 @@ In this tutorial, TATAT will first be used to download the sequencing data from 
 It should be noted that TATAT works best either in HPC or cloud based environments. Unless your local machine meets the [hardware requirements](https://github.com/viralemergence/tatat/blob/readme/README.md#hardware-requirements), do not attempt to run locally. Once the Docker image (or sif) has been downloaded or generated (see [Acquiring TATAT](https://github.com/viralemergence/tatat/blob/readme/README.md#acquiring-tatat)), it can be run via bash scripts or on the command line. We will briefly discuss some of the preparation necessary to run TATAT:
 
 #### The .env File
-Since TATAT runs in a virtual container, it is necessary to explicitly grant access to directories and files on the host system. When running TATAT via Docker or Singularity, those file paths would have to be typed out repeatedly in the commands. In order to simplify providing that information, the tutorial uses an .env file which stores all the directory and file paths as environmental variables.
+Since TATAT runs in a virtual container, it is necessary to explicitly grant access to directories and files on the host system. When running TATAT via Docker or Singularity, those file paths would have to be typed out repeatedly in the commands. In order to simplify providing that information, the tutorial uses an .env file which stores all the directory and file paths as environmental variables. An example file can be found at [.env-example](../.env-example). Likewise, there are some additional variables that are convenient for storing potentially sensitive information, like the NCBI API key. E.g.:
+```
+SINGULARITY_IMAGE="/path/to/image.sif"
+APP_DIR="/path/to/dir"
+DATA_DIR="/path/to/dir"
+SQLITE_DB_DIR=$DATA_DIR"/path/to/dir"
+TRANSCRIPTOME_DATA_DIR=$DATA_DIR"/path/to/dir"
+```
+Take the time to fill out these variables with the appropriate information. TATAT can be used without this feature, but for this tutorial it will be expected that
+this file is completed. Even if the directories don't exist, the bash scripts in the tutorial are written to generate most of the directories, with the information provided. The main exception to this are for the SINGULARITY_IMAGE, APP_DIR, DATA_DIR, SQLITE_DB_DIR, TRANSCRIPTOME_DATA_DIR, and SCRATCH_DIR. These must be generated manually.
+
+#### Job Scheduling
+Many of the stages in TATAT run for hours and attempting to run the code with "live" sessions via tools like ssh is not generally recommended, as loss of the connection may terminate the process or make it difficult to tell when the process has completed. Likewise, generating assemblies sequentially via a ssh connection could take days, whereas we observed with the rousettus data performing assembly in parallel completed in ~3.5 hours.
+<br><br>
+Consequently, we strongly recommend using a job scheduler to launch the TATAT bash scripts and use the job scheduler SLURM in this tutorial. We will briefly cover aspects of SLURM, but an in-depth discussion is beyond the scope of this tutorial, and may be irrelevant if a different job scheduler is used. However, if a user has limited resources or feels comfortable running TATAT just through the command line, it is not necessary to use a job scheduler.
