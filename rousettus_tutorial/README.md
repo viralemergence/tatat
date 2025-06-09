@@ -43,4 +43,8 @@ TATAT_BLASTDB_DIR="/path/to/dir"
 Lastly, outside of this tutorial the same methodology could be used to generate BLAST databases for different clades, organisms, sequences, etc.
 
 ### TATAT "Core" Coding Genes: Running The Whole Thing
-If the .env has been correctly filled out, the BLAST database is prepared, the job scheduler used is SLURM, and all the bash scripts have been correctly modified to use whichever partition is avialble to the user, at this point the entire TATAT workflow can be run using [tatat.sh](tatat.sh). However, it is likely that there will be some minor errors. Consequently, for the purposes of this tutorial, we will walk through the individual stages of TATAT, which comprise of Assembly, Thinning, and Annotation.
+If the .env has been correctly filled out, the BLAST database is prepared, the job scheduler used is SLURM, and all the bash scripts have been correctly modified to use whichever partition is available to the user, at this point the entire TATAT workflow can be run using [tatat.sh](tatat.sh). The command would look like:
+```
+sbatch tatat.sh path/to/.env
+```
+However, it is likely that there will be some minor errors. Consequently, for the purposes of this tutorial, we will walk through the individual stages of TATAT, which comprise of Assembly, Thinning, and Annotation.
