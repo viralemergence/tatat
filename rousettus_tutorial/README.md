@@ -81,7 +81,7 @@ As a brief aside on Singularity and the args used here:
 - "--bind" gives the container access to directories on the host system, using the format of "--bind host_directory:container_directory"
 
 ### TATAT "Core" Coding Genes: Assembly
-The [assembly_array.sh](tatat_main/assembly_array.sh) script describes all the steps necessary to generate *de novo* assemblies from the samples. The script itself can be submitted to slurm and will request 20 jobs be processed, with a max of only 10 at a time:
+The [assembly_array.sh](tatat_main/assembly_array.sh) script contains all the steps necessary to generate *de novo* assemblies from the samples. The script itself can be submitted to slurm and will request 20 jobs be processed, with a maximum of only 10 at a time:
 ```
 #SBATCH --array=0-19:1%10
 ```
@@ -150,7 +150,42 @@ singularity exec \
 
 Each of these steps is purposely designed to be carried out separately by a specific script so that a user has the option of using their own tools as desired. E.g. Cutadapt could be used instead of FASTP and Trinity could be used instead of rnaSPAdes. Hypothetically this should cause no issues with the rest of TATAT. However, this has not currently been tested and it is highly recommended to use the default tools, especially as they have been shown in many publications to be fast and require less resources than other tools. Regardless, once these commands have finished, all the final contigs should be in the folder indicated by $RNASPADES_COLLATED_ASSEMBLY_DIR.
 
-**Trouble Shooting:** If the assembly code was launched via slurm and failed, check the output error log. If run on the command line, errors will be printed to the terminal. While any number of errors could potentially be generated, the most common include:
--file/directory does not exist: This usually results from incorrectly assigning path variables in the .env file, and needs to be corrected
--OOM error: This stands for Out Of Memory and should not occur for the tutorial, but if the RAM amount was lowered this could occur
--directory already exists: This usually occurs when re-running the script and is not a problem. The mkdir commands create this error if the directory has already been generated
+**Troubleshooting:** If the assembly code was launched via slurm and failed, check the output error log. If run on the command line, errors will be printed to the terminal. While any number of errors could potentially be generated, the most common include:
+- file/directory does not exist: This usually results from incorrectly assigning path variables in the .env file, and needs to be corrected
+- OOM error: This stands for Out Of Memory and should not occur for the tutorial, but if the RAM amount was lowered this could occur
+- directory already exists: This usually occurs when re-running the script and is not a problem. The mkdir commands create this error if the directory has already been generated
+
+### TATAT "Core" Coding Genes: Thinning
+After the assembly stage has completed, the thinning stage can be run with [thinning.sh](tatat_main/thinning.sh).
+<br><br>
+The first step generates a sqlite table for the *de novo* assemblies called "transcripts" and a table for candidate cds called "cds":
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_transcripts_table \
+    -create_cds_table
+```
+If for any reason the thinning stage needs to be redone, it is important to make sure this step is also re-run, as it will delete the old tables and generate new, empty tables.
+
+Then all the contigs need to be merged into a single file and their metadata added to the "transcripts" table:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/merge_fastas_and_set_metadata.py \
+    -assembly_fasta_dir /src/data/collated \
+    -merged_path /src/transcriptome_data/raw_transcriptome.fna \
+    -sqlite_db /src/sqlite_db/tatat.db
+```
+The single file, called "raw_transcriptome.fna" here, is a fasta file that contains all the *de novo* assemblies generated previously. This file is used repeatedly later on, so make sure not to delete it. Also, because this file tends to be large, it was decided it was better to leave it out of the sqlite database. However, information such as the sequence ids, sequence lengths, and which sample they come from is all stored in the sqlite "transcripts" table.
+
+However, these potential candidates may not all be biologically relevant, as suggested in the diagram below:
