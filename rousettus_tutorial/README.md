@@ -53,7 +53,7 @@ Lastly, TATAT requires a metadata file on the samples to be analyzed. The data i
 - transcriptome: The transcriptome to which the sample belongs. This could be a species, or age group, or a random string. But the final transcriptome(s) will be generated with this information
 - r1_read_path & r2_read_path: For the tutorial and SRA data, this does not initially need to be supplied, as TATAT will autopopulate the paths when downloading the SRA samples. However, if personal samples are being used, this information must be provided in the sample_metadata.csv file
 
-### TATAT "Core" Coding Genes: Running The Whole Thing
+### TATAT Coding Genes: Running The Whole Thing
 If the .env has been correctly filled out, the BLAST database is prepared, the job scheduler used is SLURM, and all the bash scripts have been correctly modified to use whichever partition is available to the user, at this point the entire TATAT workflow can be run using [tatat.sh](tatat.sh). The command would look like:
 ```
 sbatch tatat.sh path/to/.env
@@ -80,7 +80,7 @@ As a brief aside on Singularity and the args used here:
 - "--no-home" keeps other directories on the host system from secretly being mounted to the container
 - "--bind" gives the container access to directories on the host system, using the format of "--bind host_directory:container_directory"
 
-### TATAT "Core" Coding Genes: Assembly
+### TATAT Coding Genes: Assembly
 The [assembly_array.sh](tatat_main/assembly_array.sh) script contains all the steps necessary to generate *de novo* assemblies from the samples. The script itself can be submitted to slurm and will request 20 jobs be processed, with a maximum of only 10 at a time:
 ```
 #SBATCH --array=0-19:1%10
@@ -155,7 +155,7 @@ Each of these steps is purposely designed to be carried out separately by a spec
 - OOM error: This stands for Out Of Memory and should not occur for the tutorial, but if the RAM amount was lowered this could occur
 - directory already exists: This usually occurs when re-running the script and is not a problem. The mkdir commands create this error if the directory has already been generated
 
-### TATAT "Core" Coding Genes: Thinning
+### TATAT Coding Genes: Thinning
 After the assembly stage has completed, the thinning stage can be run with [thinning.sh](tatat_main/thinning.sh).
 <br><br>
 The first step generates a sqlite table for the *de novo* assemblies called "transcripts" and a table for candidate cds called "cds":
