@@ -15,7 +15,7 @@ the following diagram:
 
 In this tutorial, TATAT will first be used to download the sequencing data from the Sequencing Read Archive (SRA), remove sequencing errors and adapters using FASTP, assemble the reads into contigs via *de novo* assembly with rnaSPAdes, thin out the excess contigs, then annotate the remaining contigs and select which best represent each coding gene. Then the initial set of contigs will be screened for matches to the coding genes, and the remaining contigs annotated for ncRNA genes.
 
-### TATAT "Core" Coding Genes: Preparation
+### TATAT Coding Genes: Preparation
 It should be noted that TATAT works best either in HPC or cloud based environments. Unless your local machine meets the [hardware requirements](https://github.com/viralemergence/tatat/blob/readme/README.md#hardware-requirements), do not attempt to run locally. Once the Docker image (or sif) has been downloaded or generated (see [Acquiring TATAT](https://github.com/viralemergence/tatat/blob/readme/README.md#acquiring-tatat)), it can be run via bash scripts or on the command line. We will briefly discuss some of the additional preparation necessary to run TATAT as follows:
 
 #### The .env File
