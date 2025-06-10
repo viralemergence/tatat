@@ -188,4 +188,44 @@ singularity exec \
 ```
 The single file, called "raw_transcriptome.fna" here, is a fasta file that contains all the *de novo* assemblies generated previously. This file is used repeatedly later on, so make sure not to delete it. Also, because this file tends to be large, it was decided it was better to leave it out of the sqlite database. However, information such as the sequence ids, sequence lengths, and which sample they come from is all stored in the sqlite "transcripts" table.
 
-However, these potential candidates may not all be biologically relevant, as suggested in the diagram below:
+Querying either the sqlite database or raw_transcriptome.fna will reveal at this point ~15 million transcripts have been generated, which far exceed the expected number of genes. This is likely because these potential candidates are not all biologically relevant, as outlined in the diagram below:
+<br>
+<p align=center>
+  <img src="https://github.com/user-attachments/assets/850ef67e-5531-43d6-b3d0-ec572caa5c0f" width=70%>
+</p>
+The transcripts could include assemblies generated from DNA contamination, degraded RNA, transcriptional noise, chimeric assemblies, and other anomalies, in addition to real mRNA transcripts and their isoforms. Also, when many samples are included for the same transcriptome there may be redundancies (e.g. we observed an apparent transcript for Ubiquitin generated separately for almost every sample). Consequently, it becomes necessary to "thin" these candidates by removing suspected anomalies and redundancies. TATAT accomplishes this by using EvidentialGenes in the following command:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --env LC_ALL=C \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    --bind $EVIGENE_OUTPUT_DIR:/src/evigene_output \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -outdir /src/evigene_output \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -transcriptome rousettus -prefix_column sample_uid \
+    -run_evigene -cpus $SLURM_CPUS_PER_TASK -mem $SLURM_MEM_PER_NODE -phetero 2 -minaa 99 \
+    -run_transcript_metadata_appender -run_cds_and_metadata
+```
+Additionally, for this tutorial we pass the "phetero" arg, as we expect there to be some sequence discrepencies due to heterozygosity in the samples, and "minaa", as mammals tend to have longer genes and this removes genes with fewer than 100 amino acids. For more details on optimizing these args with other organisms, see the EvidentialGenes homepage.
+
+This step generally takes a couple hours to run, but once completed it will have populated the "cds" table with candidate cds ids, start and end positions derived from the raw transcripts, strand directionality, the parental transcript id, and other information. However, ideally the "transcripts" table entries will have direct connections to the "cds" table entries. To quickly add this, the following command is run:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/thinning/evigene_orchestration.py \
+    -assembly_fasta holder -outdir holder \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -transcriptome holder -prefix_column holder \
+    -update_transcript_cds_ids
+```
+This is much faster and provides each transcript row with the cds id it contains, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
+
+**Troubleshooting:** See the Assembly stage troubleshooting section for similar tips.
