@@ -193,6 +193,7 @@ Querying either the sqlite database or raw_transcriptome.fna will reveal at this
 <p align=center>
   <img src="https://github.com/user-attachments/assets/850ef67e-5531-43d6-b3d0-ec572caa5c0f" width=70%>
 </p>
+
 The transcripts could include assemblies generated from DNA contamination, degraded RNA, transcriptional noise, chimeric assemblies, and other anomalies, in addition to real mRNA transcripts and their isoforms. Also, when many samples are included for the same transcriptome there may be redundancies (e.g. we observed an apparent transcript for Ubiquitin generated separately for almost every sample). Consequently, it becomes necessary to "thin" these candidates by removing suspected anomalies and redundancies. TATAT accomplishes this by using EvidentialGenes in the following command:
 ```
 singularity exec \
