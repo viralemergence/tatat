@@ -333,6 +333,13 @@ This will produce a fna file where each sequence has the unique cds_id assigned 
 - Not running this part of the code around midnight
 
 ### TATAT Coding Genes: Post QC
-Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual steps in great detail, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
+Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual step, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
 <br><br>
-Similarly, an in-depth discussion of the QC results from each script are in the publication. Please refer to the publication if you want to compare your outputs.
+Similarly, an in-depth discussion of the QC results from each script are in the publication. Please refer to the publication if you want to compare your outputs, especially Figure 2.
+<br><br>
+The key takeaways from out QC analyses were:
+- TATAT was able to recover most of the NCBI genes for *Rousettus aegyptiacus*, as well as identify new genes
+- TATAT appears to have some difficulty when replicate count is low, or transcript levels are low (both of which are common problems to transcriptomics)
+- The sequences produced by TATAT have high sequence similarity to the NCBI genes, but tend to be a little shorter
+- The final transcriptome is suitable for downstream analyses such as Differential Gene Expression (DGE), Gene Set Enrichment (GSE), Gene Ontology Enrichment (GOE), and other analyses that look at changes in the counts of reads mapping to gene sequences
+- However, we make no guarantees as to whether the coding sequence is highly accurate or that the longest isoform was correctly identified
