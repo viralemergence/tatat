@@ -265,7 +265,7 @@ singularity exec \
 ```
 This step also takes a couple hours, and it is recommended to use as many CPUs as possible, but eventually a diminishing returns effect is observed. 10-20 CPUs seems to yield best results. Also it is recommended to use 5-10 max_target_seqs, as some of the subject sequences in the database do not have gene symbols associated with them in the NCBI database, and subsequent scripts try to identify sequences with gene symbols to use in the final annotation.
 
-After the BLAST search finishes, the resulting file will contain the accession numbers for the subject sequences our queries mapped to. These accession numbers can be used to obtain gene symbols. First we generate another sqlite table called "accession_numbers":
+After the BLAST search finishes, the resulting file will contain the accession numbers for the subject sequences to which our queries mapped. These accession numbers can be used to obtain gene symbols. First we generate another sqlite table called "accession_numbers":
 ```
 singularity exec \
     --pwd /src \
@@ -291,3 +291,7 @@ singularity exec \
     -sqlite_db /src/sqlite_db/tatat.db \
     -table_name accession_numbers -rna_type coding
 ```
+Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols. **Disclaimer**: This is the most touchy part of TATAT. Unfortunately, since the Datasets tool uses the NCBI servers, sometimes the script crashes if the servers are experiencing high demand, maintenance, updates, or other factors not fully understood. For instance, it has been observed the NCBI servers seem to reject requests via Datasets around midnight. However, most of the time it runs correctly.
+<br><br>
+That being said, we also highly recommend obtaining an NCBI API key to use for this part of the script. Members of the scientific community have claimed that frequent requests to the NCBI servers without a key may result in ALL requests being rejected. This is supposedly a protective measure to prevent overloading the servers, either from novice scripters or malicious attacks. Please obtain an NCBI API key to prevent being blocked from the servers.
+<br><br>
