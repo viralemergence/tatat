@@ -291,9 +291,12 @@ singularity exec \
     -sqlite_db /src/sqlite_db/tatat.db \
     -table_name accession_numbers -rna_type coding
 ```
-Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols. Note: the rna_type "coding" is used to skip any genes that may be non-coding.
+Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols.
+Notes:
+- The rna_type "coding" is used to skip any genes that may be non-coding.
+- Here we bind the "/etc" directory, as this contains credentials necessary for interacting with web services. Depending on the host system's directory structure, this may need to be changed
 
-**Disclaimer**: This is the most touchy part of TATAT. Unfortunately, since the Datasets tool uses the NCBI servers, sometimes the script crashes if the servers are experiencing high demand, maintenance, updates, or other factors not fully understood. For instance, it has been observed the NCBI servers seem to reject requests via Datasets around midnight. However, most of the time it runs correctly.
+**Disclaimer**: This is the most touchy part of TATAT. Unfortunately, since the Datasets tool uses the NCBI servers, sometimes the script crashes if the servers are experiencing high demand, maintenance, database updates, or other factors not fully understood. For instance, it has been observed the NCBI servers seem to reject requests via Datasets around midnight. However, most of the time it runs correctly.
 <br><br>
 That being said, we also highly recommend obtaining an NCBI API key to use for this part of the script. Members of the scientific community have claimed that frequent requests to the NCBI servers without a key may result in ALL requests being rejected. This is supposedly a protective measure to prevent overloading the servers, either from novice scripters or malicious attacks. Please obtain an NCBI API key to prevent being blocked from the servers.
 <br><br>
@@ -309,7 +312,7 @@ singularity exec \
     -blast_results /src/blast_hits/cds_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
 ```
-This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the highest hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB), and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS either represents the unprocessed mRNA or the longest isoform. These sequences are flagged in the "cds" table as being "core" genes, i.e. they represent the "core" transcriptome, but other isoforms likely exist, and definitely ncRNA exists.
+This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the most significant hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB), and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS represents the longest isoform. These sequences are flagged in the "cds" table as being "core" genes, i.e. they represent the "core" transcriptome, but other isoforms likely exist, and definitely ncRNA exists.
 <br><br>
 Finally the "core" coding transcriptome sequences may be extracted:
 ```
@@ -328,9 +331,10 @@ singularity exec \
 ```
 This will produce a fna file where each sequence has the unique cds_id assigned by TATAT and the gene symbol as the header, and the CDS under the header. This file may be used for subsequent analyses.
 
-**Troubleshooting:** As described previously, the main errors likely to occur here involve the NCBI servers. To address them, consider:
+**Troubleshooting:** As described previously, the main errors likely to occur here involve the NCBI servers and Datasets tool. To address them, consider:
 - Obtaining a NCBI API key
 - Not running this part of the code around midnight
+- Checking if the host system stores its SSL certificates in a directory other than "/etc"
 
 ### TATAT Coding Genes: Post QC Summary
 Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual step, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
