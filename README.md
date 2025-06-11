@@ -35,7 +35,7 @@ A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial)
 - The default assembly tools include fastp and rnaSPAdes, and the default thinning tool is EvidentialGenes. TATAT has been designed to allow other tools to be used at these steps and then fed into the workflow. However, currently no other tools have been tested and we cannot guarantee the workflow will function as expected. Therefore, users are encouraged to use the bioinformatic tools already provided in the TATAT Docker image.
 <br><br>
 ### Limitations
-- Currently TATAT is not designed to capture all isoforms in the final transcriptome, and is instead designed to select the longest potential isoform to represent the gene. This means that Differential Gene Expression (DEG) analysis using TATAT transcriptomes is able to show overall changes in gene expression, but not per isoform.
+- Currently TATAT is not designed to capture all isoforms in the final transcriptome, and is instead designed to select the longest potential isoform to represent the gene. This means that Differential Gene Expression (DGE) analysis using TATAT transcriptomes is able to show overall changes in gene expression, but not per isoform.
 - TATAT is primarily designed to generate coding transcriptomes and has been optimized and validated on coding sequences. TATAT has the capability to annotate non-coding RNAs (ncRNA) and add them to the transciptomes generated, but this feature takes significantly longer (up to 5-10x longer!) and has not been extensively validated.
 <br><br>
 ### Citing
