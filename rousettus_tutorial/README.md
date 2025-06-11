@@ -234,7 +234,7 @@ This is much faster and provides each transcript row with the CDS id it contains
 ### TATAT Coding Genes: Annotation
 After the thinning stage the [annotation.sh](tatat_main/annotation.sh) script may be run.
 <br><br>
-We begin the annotation process by performing a BLAST search where the candidate sequences in the "cds" table are the queries and the "vertebrata_core_nt" database (described previously) contains the subject sequences. The sequences are extracted:
+We begin the annotation process by performing a BLAST search where the candidate sequences in the "cds" table are the queries and the "vertebrata_core_nt" database (described previously) contains the subject sequences. The query sequences are extracted:
 ```
 singularity exec \
     --pwd /src \
