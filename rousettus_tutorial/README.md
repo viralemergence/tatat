@@ -30,7 +30,7 @@ SQLITE_DB_DIR=$DATA_DIR"/path/to/dir"
 TRANSCRIPTOME_DATA_DIR=$DATA_DIR"/path/to/dir"
 ```
 Take the time to fill out these variables with the appropriate information. TATAT can be used without this feature, but for this tutorial it will be expected that
-this file is completed. Even if the directories don't exist, the bash scripts in the tutorial are written to generate most of the directories, with the information provided. The main exception to this are for the SINGULARITY_IMAGE, APP_DIR, DATA_DIR, SQLITE_DB_DIR, TRANSCRIPTOME_DATA_DIR, and SCRATCH_DIR. These must be generated manually.
+this file is completed. Even if the directories don't exist, the bash scripts in the tutorial are written to generate the directories with the information provided.
 
 #### Job Scheduling
 Many of the stages in TATAT run for hours and attempting to run the code with "live" sessions via tools like ssh is not generally recommended, as loss of the connection may terminate the process or make it difficult to tell when the process has completed. Likewise, generating assemblies sequentially via a ssh connection could take days, whereas we observed with the rousettus data performing assembly in parallel completed in ~3.5 hours.
