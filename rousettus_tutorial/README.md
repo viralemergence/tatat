@@ -332,7 +332,7 @@ This will produce a fna file where each sequence has the unique cds_id assigned 
 - Obtaining a NCBI API key
 - Not running this part of the code around midnight
 
-### TATAT Coding Genes: Post QC
+### TATAT Coding Genes: Post QC Summary
 Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual step, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
 <br><br>
 Similarly, an in-depth discussion of the QC results from each script are in the publication. Please refer to the publication if you want to compare your outputs, especially Figure 2.
@@ -343,3 +343,14 @@ The key takeaways from out QC analyses were:
 - The sequences produced by TATAT have high sequence similarity to the NCBI genes, but tend to be a little shorter
 - The final transcriptome is suitable for downstream analyses such as Differential Gene Expression (DGE), Gene Set Enrichment (GSE), Gene Ontology Enrichment (GOE), and other analyses that look at changes in the counts of reads mapping to gene sequences
 - However, we make no guarantees as to whether the coding sequence is highly accurate or that the longest isoform was correctly identified
+
+### TATAT Non-Coding Genes: Summary
+In addition to the generating a coding transcriptome, TATAT is able to generate a non-coding transcriptome as described in [ncrna.sh](ncrna.sh)
+<br><br>
+The code logic is very similar to what was described in the "TATAT Coding Genes" part of the tutorial, so we will not describe it in great detail here. However, it is dependent on the coding transcriptome for it to work, and there are some other key takeaways:
+- Since ncRNA is not well understood, there are not many tools for thinning it. Consequently, the best we could do was remove transcripts with high length, remove any sequences that mapped to the coding transcripts, then cluster the remaining transcripts by sequence identity. This still left ~5 million transcripts
+- Consequently, performing a BLAST search of the remaining ~5 million sequences took about 1 day to run
+- The subsequent annotation steps also take longer, and the final ncRNA transcriptome was ~70,000 sequences, which is fairly high
+- Lastly, we also did not have a clear way to validate that these sequences were biologically relevant, and can only rely on the fact that the coding transcriptome QC showed TATAT worked well
+
+In summary, we suggest the ncRNA part of TATAT be used with some caution, but in principle it should work. However, the dramatically increased runtime makes it inconvenient to run, so unless there is a clear use case for the ncRNA transcriptome, we would not include it in a standard workflow.
