@@ -327,3 +327,12 @@ singularity exec \
     -add_gene_name -transcriptome rousettus
 ```
 This will produce a fna file where each sequence has the unique cds_id assigned by TATAT and the gene symbol as the header, and the CDS under the header. This file may be used for subsequent analyses.
+
+**Troubleshooting:** As described previously, the main errors likely to occur here involve the NCBI servers. To address them, consider:
+- Obtaining a NCBI API key
+- Not running this part of the code around midnight
+
+### TATAT Coding Genes: Post QC
+Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual steps in great detail, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
+<br><br>
+Similarly, an in-depth discussion of the QC results from each script are in the publication. Please refer to the publication if you want to compare your outputs.
