@@ -291,7 +291,7 @@ singularity exec \
     -sqlite_db /src/sqlite_db/tatat.db \
     -table_name accession_numbers -rna_type coding
 ```
-Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols.
+Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols. Note: the rna_type "coding" is used to skip any genes that may be non-coding.
 
 **Disclaimer**: This is the most touchy part of TATAT. Unfortunately, since the Datasets tool uses the NCBI servers, sometimes the script crashes if the servers are experiencing high demand, maintenance, updates, or other factors not fully understood. For instance, it has been observed the NCBI servers seem to reject requests via Datasets around midnight. However, most of the time it runs correctly.
 <br><br>
@@ -309,4 +309,21 @@ singularity exec \
     -blast_results /src/blast_hits/cds_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
 ```
-This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the highest hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB). and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS either represents the unprocessed mRNA or at least the longest isoform.
+This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the highest hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB). and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS either represents the unprocessed mRNA or the longest isoform. These sequences are flagged in the "cds" table as being "core" genes, i.e. they represent the "core" transcriptome, but other isoforms likely exist, and definitely ncRNA exists.
+<br><br>
+Finally the "core" coding transcriptome sequences may be extracted:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/evigene_cds_aa_extraction.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/core_gene_sql_queries.json \
+    -cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
+    -add_gene_name -transcriptome rousettus
+```
+This will produce a fna file where each sequence has the unique cds_id assigned by TATAT and the gene symbol as the header, and the CDS under the header. This file may be used for subsequent analyses.
