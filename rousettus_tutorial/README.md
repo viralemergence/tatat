@@ -158,7 +158,7 @@ Each of these steps is purposely designed to be carried out separately by a spec
 ### TATAT Coding Genes: Thinning
 After the assembly stage has completed, the thinning stage can be run with [thinning.sh](tatat_main/thinning.sh).
 <br><br>
-The first step generates a sqlite table for the *de novo* assemblies called "transcripts" and a table for candidate cds called "cds":
+The first step generates a sqlite table for the *de novo* assemblies called "transcripts" and a table for candidate CDS called "cds":
 ```
 singularity exec \
     --pwd /src \
@@ -214,7 +214,7 @@ singularity exec \
 ```
 Additionally, for this tutorial we pass the "phetero" arg, as we expect there to be some sequence discrepencies due to heterozygosity in the samples, and "minaa", as mammals tend to have longer genes and this removes genes with fewer than 100 amino acids. For more details on optimizing these args with other organisms, see the EvidentialGenes homepage.
 
-This step generally takes a couple hours to run, but once completed it will have populated the "cds" table with candidate cds ids, start and end positions derived from the raw transcripts, strand directionality, the parental transcript id, and other information. However, ideally the "transcripts" table entries will have direct connections to the "cds" table entries. To quickly add this, the following command is run:
+This step generally takes a couple hours to run, but once completed it will have populated the "cds" table with candidate CDS ids, start and end positions derived from the raw transcripts, strand directionality, the parental transcript id, and other information. However, ideally the "transcripts" table entries will have direct connections to the "cds" table entries. To quickly add this, the following command is run:
 ```
 singularity exec \
     --pwd /src \
@@ -227,7 +227,7 @@ singularity exec \
     -transcriptome holder -prefix_column holder \
     -update_transcript_cds_ids
 ```
-This is much faster and provides each transcript row with the cds id it contains, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
+This is much faster and provides each transcript row with the CDS id it contains, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
 
 **Troubleshooting:** See the Assembly stage troubleshooting section for similar tips.
 
@@ -309,7 +309,7 @@ singularity exec \
     -blast_results /src/blast_hits/cds_hits.tsv \
     -sqlite_db /src/sqlite_db/tatat.db -transcriptome rousettus
 ```
-This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the highest hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB). and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS either represents the unprocessed mRNA or the longest isoform. These sequences are flagged in the "cds" table as being "core" genes, i.e. they represent the "core" transcriptome, but other isoforms likely exist, and definitely ncRNA exists.
+This script functions by identifying all the CDS that found a hit via BLAST, and then if that CDS had multiple hits, assigning the highest hit to it with a real gene symbol (e.g. a "LOC" gene with a higher e-score would be skipped for a real gene like UBB, even if the e-score was slightly lower). Then all the CDS with a shared gene symbol are clustered (e.g. all sequences that matched UBB), and the longest sequence is chosen to represent that cluster; the logic here is there may be many isoforms for that gene, and the longest CDS either represents the unprocessed mRNA or the longest isoform. These sequences are flagged in the "cds" table as being "core" genes, i.e. they represent the "core" transcriptome, but other isoforms likely exist, and definitely ncRNA exists.
 <br><br>
 Finally the "core" coding transcriptome sequences may be extracted:
 ```
