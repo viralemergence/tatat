@@ -230,3 +230,64 @@ singularity exec \
 This is much faster and provides each transcript row with the cds id it contains, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
 
 **Troubleshooting:** See the Assembly stage troubleshooting section for similar tips.
+
+### TATAT Coding Genes: Annotation
+After the thinning stage the [annotation.sh](tatat_main/annotation.sh) script may be run.
+<br><br>
+We begin the annotation process by performing a BLAST search where the candidate sequences in the "cds" table are the queries and the "vertebrata_core_nt" database (described previously) contains the subject sequences. The sequences are extracted:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/evigene_cds_aa_extraction.py \
+    -assembly_fasta /src/transcriptome_data/raw_transcriptome.fna \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -sql_queries /src/app/example_sql_queries/cds_for_blastn_sql_queries.json \
+    -cds_fasta /src/transcriptome_data/cds.fna
+```
+Then BLASTed:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $TATAT_BLASTDB_DIR:/src/blastdb \
+    --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
+    --bind $BLAST_HITS_DIR:/src/blast_hits \
+    $SINGULARITY_IMAGE \
+    blastn -db /src/blastdb/vertebrata_core_nt \
+    -query /src/transcriptome_data/cds.fna \
+    -out /src/blast_hits/cds_hits.tsv \
+    -evalue 0.0001 -num_threads $SLURM_CPUS_PER_TASK -mt_mode 1 \
+    -outfmt "6 qseqid sacc qlen" -max_target_seqs 10
+```
+This step also takes a couple hours, and it is recommended to use as many CPUs as possible, but eventually a diminishing returns effect is observed. 10-20 CPUs seems to yield best results. Also it is recommended to use 5-10 max_target_seqs, as some of the subject sequences in the database do not have gene symbols associated with them in the NCBI database, and subsequent scripts try to identify sequences with gene symbols to use in the final annotation.
+
+After the BLAST search finishes, the resulting file will contain the accession numbers for the subject sequences our queries mapped to. These accession numbers can be used to obtain gene symbols. First we generate another sqlite table called "accession_numbers":
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/sqlite_db_prep.py \
+    -sqlite_db_dir /src/sqlite_db \
+    -create_acc_num_table
+```
+And then use the NCBI's "Datasets" tool to submit the BLAST result's accession numbers in batches:
+```
+singularity exec \
+    --pwd /src \
+    --no-home \
+    --env NCBI_API_KEY=$NCBI_API_KEY \
+    --bind /etc:/etc \
+    --bind $BLAST_HITS_DIR:/src/blast_hits \
+    --bind $SQLITE_DB_DIR:/src/sqlite_db \
+    $SINGULARITY_IMAGE \
+    python3 -u /src/app/annotation/make_accession_gene_symbol_mapping.py \
+    -blast_results /src/blast_hits/cds_hits.tsv \
+    -sqlite_db /src/sqlite_db/tatat.db \
+    -table_name accession_numbers -rna_type coding
+```
