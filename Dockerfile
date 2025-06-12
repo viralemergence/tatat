@@ -2,9 +2,6 @@ FROM ubuntu:22.04
 
 WORKDIR /src
 
-# Copy the app directory which contains the scripts necessary to run TATAT
-COPY ./src/app /src/app
-
 # Copy the tools directory which contains the Exonerate compiled binary
 COPY ./src/tools /src/tools
 
@@ -18,6 +15,9 @@ RUN apt-get update \
     && apt install python3-pip -y \
     $$ unzip
 
+# Install sqlite for metadata storage
+RUN apt install -y sqlite3 libsqlite3-dev
+
 # Install SRA toolkit
 RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/3.1.1/sratoolkit.3.1.1-ubuntu64.tar.gz -P /src/tools \
     && tar xzvf /src/tools/sratoolkit.3.1.1-ubuntu64.tar.gz -C /src/tools \
@@ -27,8 +27,8 @@ RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/3.1.1/sratoolkit.3.1.1-ubunt
 ENV PATH="/src/tools/sratoolkit.3.1.1-ubuntu64/bin:$PATH"
 
 # Install fastp
-RUN wget http://opengene.org/fastp/fastp.0.23.4 -P /src/tools/fastp \
-    && mv /src/tools/fastp/fastp.0.23.4 /src/tools/fastp/fastp \
+RUN wget http://opengene.org/fastp/fastp.0.26.0 -P /src/tools/fastp \
+    && mv /src/tools/fastp/fastp.0.26.0 /src/tools/fastp/fastp \
     && chmod a+x /src/tools/fastp/fastp
 
 # Configure fastp
@@ -41,10 +41,6 @@ RUN wget https://github.com/ablab/spades/releases/download/v4.0.0/SPAdes-4.0.0-L
 
 # Configure SPAdes
 ENV PATH="/src/tools/SPAdes-4.0.0-Linux/bin:$PATH"
-
-# Install for kmer coverage QC
-RUN pip install pandas==2.2.3
-RUN pip install seaborn==0.13.2
 
 # Install CD-HIT-EST
 RUN wget https://github.com/weizhongli/cdhit/archive/refs/tags/V4.8.1.tar.gz -P /src/tools \
@@ -92,25 +88,12 @@ RUN wget http://arthropods.eugenes.org/EvidentialGene/other/evigene_old/evigene.
 # Configure EvidentialGene
 ENV EVIGENE="/src/tools/evigene"
 
-# Install Diamond
-RUN wget http://github.com/bbuchfink/diamond/releases/download/v2.1.11/diamond-linux64.tar.gz -P /src/tools/diamond \
-    && tar xzvf /src/tools/diamond/diamond-linux64.tar.gz -C /src/tools/diamond \
-    && rm /src/tools/diamond/diamond-linux64.tar.gz
+# Install NCBI Datasets
+RUN wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/datasets -P /src/tools/datasets
 
-# Configure Diamond
-ENV PATH="/src/tools/diamond:$PATH"
-
-# Install NCBI Datasets & Dataformat
-RUN wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/datasets -P /src/tools/datasets \
-    && wget https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/linux-amd64/dataformat -P /src/tools/dataformat
-
-# Configure Datasets & Dataformat
+# Configure Datasets
 ENV PATH="/src/tools/datasets:$PATH"
-ENV PATH="/src/tools/dataformat:$PATH"
-RUN chmod +x /src/tools/datasets/datasets /src/tools/dataformat/dataformat
-
-# Install matplotlib-venn for post annotation analyses
-RUN pip3 install matplotlib-venn==1.1.2
+RUN chmod +x /src/tools/datasets/datasets
 
 # Install BUSCO gene set analysis dependencies HMMER, biopython, requests
 RUN apt-get install -y hmmer=3.3.2+dfsg-1 \
@@ -132,8 +115,12 @@ RUN wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-
 # Configure Salmon
 ENV PATH="/src/tools/salmon-latest_linux_x86_64/bin:$PATH"
 
-# Install sklearn for post analysis
+# Install matplotlib-venn, pandas, seaborn, sklearn for post analysis
+RUN pip3 install matplotlib-venn==1.1.2
+RUN pip install pandas==2.2.3
+RUN pip install seaborn==0.13.2
 RUN pip install scikit-learn==1.6.1
 
-# Install sqlite for metadata storage
-RUN apt install -y sqlite3 libsqlite3-dev
+# Copy the app directory which contains the scripts necessary to run TATAT
+# This is done last so that if the app scripts are updated, the entire image is not re-built
+COPY ./src/app /src/app
