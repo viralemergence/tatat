@@ -13,3 +13,8 @@ sudo docker run --platform=linux/amd64 -it tatat bash
 sudo docker login -u $DOCKER_USER_ID
 sudo docker tag tatat:latest $DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest
 sudo docker push $DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest
+
+# To push to GitHub registry
+sudo docker login ghcr.io -u $GITHUB_USER_ID
+sudo docker tag tatat:latest ghcr.io/viralemergence/transcriptome-assembly-thinning-annotation-tool:latest
+sudo docker push ghcr.io/viralemergence/transcriptome-assembly-thinning-annotation-tool:latest
