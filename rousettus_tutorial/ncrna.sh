@@ -23,7 +23,6 @@ module load singularity
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sqlite_db_prep.py \
@@ -34,7 +33,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     $SINGULARITY_IMAGE \
@@ -48,7 +46,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $NCRNA_DIR:/src/ncrna \
@@ -65,7 +62,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $NCRNA_DIR:/src/ncrna \
@@ -94,7 +90,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sqlite_db_prep.py \
@@ -108,7 +103,6 @@ singularity exec \
     --no-home \
     --env NCBI_API_KEY=$NCBI_API_KEY \
     --bind /etc:/etc \
-    --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -122,7 +116,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -134,7 +127,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
