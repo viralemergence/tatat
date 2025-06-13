@@ -14,9 +14,9 @@ sudo docker build --platform=linux/amd64 -t tatat .
 However, it is recommended that the publically available TATAT Docker image be used. Lastly, there is no versioning of the TATAT image, though this may be implemented later.
 <br><br>
 ### Hardware Requirements
-*De novo* assembly remains a resource-intensive computation. We observed that to complete the rousettus assemblies described in the [rousettus_tutorial](rousettus_tutorial) folder, 10 CPUs and 50 Gb RAM were required for the most demanding assembly generation. Similarly, the thinning step required 10 CPUs and 60 Gb RAM, and the annotation step required 20 CPUs and 60 Gb RAM. The RAM values listed are definitively required, but the CPUs are not; they just make the overall runtime bearable.
+*De novo* assembly remains a resource-intensive computation. We observed that to complete the rousettus assemblies described in the [rousettus_tutorial](rousettus_tutorial) folder, 10 CPUs and 50 GB RAM were required for the most demanding single assembly generation. Similarly, the thinning step required 10 CPUs and 60 GB RAM, and the annotation step required 20 CPUs and 60 GB RAM. The RAM values listed are definitively required, but the CPUs are not; they just make the overall runtime bearable.
 <br><br>
-Furthermore, each of these steps generally requires hours to run, with the assemblies taking the longest. By running the rousettus assemblies in parallel, and using 100 CPUs and 500 Gb RAM on a HPC, they were able to finish in ~3.5 hours. To run sequentially could become at least 1 day of runtime.
+Furthermore, each of these steps generally requires hours to run, with the assemblies taking the longest. By running the rousettus assemblies in parallel, and using 100 CPUs and 500 GB RAM on a HPC, they were able to finish in ~3.5 hours. To run sequentially could become at least 1 day of runtime.
 <br><br>
 Consequently, while it is theoretically possible to run TATAT locally on a computer, it is not recommended. It would be better to run on a HPC, or cloud-based environment like AWS or GCP.
 <br><br>
@@ -29,21 +29,21 @@ NOTE: It is not required to pull sequencing data from the SRA; it is a feature t
 </p>
 
 ### Benchmarking
-The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder totalled up to 690 Gb of uncompressed sequencing data. The assemblies were processed in parallel (as described above), but all other stages were run in unified jobs. The entire TATAT workflow was run for the tutorial 3 times and the median taken from the runs to determine overall runtime and runtime per stage, using the same resources. Times were rounded to the nearest 10 minutes.
+The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder totalled up to 690 GB of uncompressed sequencing data. The assemblies were processed in parallel (as described above), but all other stages were run as single, unified jobs. The entire TATAT workflow was run for the tutorial 3 times and the median taken from the runs to determine overall runtime and runtime per stage, using the same resources. Times were rounded to the nearest 10 minutes.
 
 | Stage | Runtime | CPUs | RAM | Parallel |
 | ----- | ----- | ----- | ----- | ----- |
 | Overall | 8 hr 10 min | | | |
-| Assembly | 3 hr 30 min | 10 | 50 Gb | 10 jobs |
-| Thinning | 1 hr 50 min | 10 | 60 Gb | No |
-| Annotation | 2 hr 30 min | 20 | 60 Gb | No |
+| Assembly | 3 hr 40 min | 10 | 50 GB | 10 jobs |
+| Thinning | 1 hr 50 min | 10 | 60 GB | No |
+| Annotation | 2 hr 30 min | 20 | 60 GB | No |
 
-In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 Gb were converted to a comprehensive transcriptome in ~8 hrs (a single workday). The assembly stage required the most resources at 100 CPUs and 500 Gb of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 Gb RAM.
+In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive transcriptome in ~8 hrs (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
 
 Notes:
-- The individual stage runtimes do not add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the runtimes
-- To reiterate, the resource usage for Assembly is per job, but 10 jobs were run in parallel
-- For some of these stages the full RAM requested was not used, but often was close. E.g. Thinning in one run used 58 Gb of RAM, but only reported using 50 Gb in another.
+- The individual stage runtimes do not perfectly add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the individual stage runtimes
+- To reiterate, the resource usage for Assembly is *per* job, but 10 jobs were run in parallel, totalling 100 CPUs and 500 GB RAM
+- For some of these stages the full RAM requested was not used, but often was close. E.g. Thinning in one run used 58 Gb of RAM, 50 Gb in another, but never the full 60 GB. The extra RAM requested allows wiggle room to prevent an Out Of Memory (OOM) error
 <br><br>
 ### Getting Started
 A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial) folder and new users are encouraged to work through it. However, some general notes are included here:
