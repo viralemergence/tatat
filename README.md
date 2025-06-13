@@ -29,7 +29,7 @@ NOTE: It is not required to pull sequencing data from the SRA; it is a feature t
 </p>
 
 ### Benchmarking
-The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder totalled up to 690 GB of uncompressed sequencing data. The assemblies were processed in parallel (as described above), but all other stages were run as single, unified jobs. The entire TATAT workflow was run for the tutorial 3 times and the median taken from the runs to determine overall runtime and runtime per stage, using the same resources. Times were rounded to the nearest 10 minutes.
+The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder totalled up to 690 GB of uncompressed sequencing data. The assemblies were processed in parallel (as described above), but all other stages were run as single, unified jobs. The entire TATAT coding gene workflow was run for the tutorial 3 times and the median taken from the runs to determine overall runtime and runtime per stage, using the same resources. Times were rounded to the nearest 10 minutes.
 
 | Stage | Runtime | CPUs | RAM | Parallel |
 | ----- | ----- | ----- | ----- | ----- |
@@ -38,7 +38,7 @@ The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder t
 | Thinning | 1 hr 50 min | 10 | 60 GB | No |
 | Annotation | 2 hr 30 min | 20 | 60 GB | No |
 
-In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive transcriptome in ~8 hrs (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
+In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive coding transcriptome in ~8 hrs (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
 
 Notes:
 - The individual stage runtimes do not perfectly add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the individual stage runtimes
@@ -50,6 +50,7 @@ A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial)
 - All the bash scripts provided require the .env file to be filled out correctly. If you wish to use them, fill out the .env file before running anything, otherwise the scripts will throw errors.
 - The annotation step requires a BLAST database. The vertebrate database used in the initial publication is available at: url_address. However, if a different or updated database is desired, follow the steps outlined in the rousettus tutorial.
 - The default assembly tools include FASTP and rnaSPAdes, and the default thinning tool is EvidentialGenes. TATAT has been designed to allow other tools to be used at these steps and then fed into the workflow. However, currently no other tools have been tested and we cannot guarantee the workflow will function as expected. Therefore, users are encouraged to use the bioinformatic tools already provided in the TATAT Docker image.
+- This was just for the coding genes; the non-coding genes took much longer and are described in the tutorial README.md
 <br><br>
 ### Limitations
 - Currently TATAT is not designed to capture all isoforms in the final transcriptome, and is instead designed to select the longest potential isoform to represent the gene. This means that analyses, such as Differential Gene Expression (DGE) analysis, using TATAT transcriptomes are able to show overall changes in gene expression, but not per isoform.
