@@ -14,13 +14,17 @@
 ENV_FILE=$1
 . $ENV_FILE
 
+mkdir $DATA_DIR
+mkdir $SQLITE_DB_DIR
+mkdir $TRANSCRIPTOME_DATA_DIR
+mkdir $SCRATCH_DIR
+
 module load singularity
 
 # Generate sqlite db with sample metadata table
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sqlite_db_prep.py \

@@ -22,7 +22,6 @@ module load singularity
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -44,14 +43,13 @@ singularity exec \
     blastn -db /src/blastdb/vertebrata_core_nt \
     -query /src/transcriptome_data/cds.fna \
     -out /src/blast_hits/cds_hits.tsv \
-    -evalue 0.0001 -num_threads 19 -mt_mode 1 \
+    -evalue 0.0001 -num_threads $SLURM_CPUS_PER_TASK -mt_mode 1 \
     -outfmt "6 qseqid sacc qlen" -max_target_seqs 10
 
 # Generate sqlite db "accession_numbers" table
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sqlite_db_prep.py \
@@ -65,7 +63,6 @@ singularity exec \
     --no-home \
     --env NCBI_API_KEY=$NCBI_API_KEY \
     --bind /etc:/etc \
-    --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -79,7 +76,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $BLAST_HITS_DIR:/src/blast_hits \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -91,7 +87,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \

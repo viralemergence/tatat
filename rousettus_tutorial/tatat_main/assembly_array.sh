@@ -28,7 +28,6 @@ module load singularity
 SRA_NUMBER=$(singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sample_metadata_extraction.py \
@@ -39,7 +38,6 @@ SRA_NUMBER=$(singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SRA_DOWNLOAD_DIR:/src/data/download_dir \
     --bind $SRA_COLLATE_DIR:/src/data/collate_dir \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
@@ -53,7 +51,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SRA_COLLATE_DIR:/src/data/fastq_dir \
     --bind $FASTQ_TRIMMED_DIR:/src/data/trimmed \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
@@ -67,7 +64,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $FASTQ_TRIMMED_DIR:/src/data/trimmed \
     --bind $RNASPADES_ASSEMBLY_DIR:/src/data/assembly \
     --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \

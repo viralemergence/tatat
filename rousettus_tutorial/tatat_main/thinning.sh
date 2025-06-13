@@ -22,7 +22,6 @@ module load singularity
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sqlite_db_prep.py \
@@ -35,7 +34,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $RNASPADES_COLLATED_ASSEMBLY_DIR:/src/data/collated \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
@@ -52,7 +50,6 @@ singularity exec \
     --pwd /src \
     --no-home \
     --env LC_ALL=C \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $EVIGENE_OUTPUT_DIR:/src/evigene_output \
@@ -68,7 +65,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/thinning/evigene_orchestration.py \
