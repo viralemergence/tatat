@@ -1,7 +1,7 @@
 # Download Docker image to Kamiak with Singularity and convert to Singularity image
 mkdir ./src/singularity_image
 module load singularity
-singularity pull ./src/singularity_image/tatat.sif docker://$DOCKER_USER_ID/transcriptome-assembly-thinning-annotation-tool:latest
+singularity pull ./src/singularity_image/tatat.sif docker://ghcr.io/viralemergence/transcriptome-assembly-thinning-annotation-tool:latest
 
 # For making scratch space
 mkworkspace
