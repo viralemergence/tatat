@@ -22,9 +22,7 @@ It should be noted that TATAT works best either in HPC or cloud based environmen
 Since TATAT runs in a virtual container, it is necessary to explicitly grant access to directories and files on the host system. When running TATAT via Docker or Singularity, those file paths would have to be typed out repeatedly in the commands. In order to simplify providing that information, the tutorial uses an .env file which stores all the directory and file paths as environmental variables. An example file can be found at [.env-example](../.env-example). Likewise, there are some additional variables that are convenient for storing potentially sensitive information, like the NCBI API key. E.g.:
 ```
 NCBI_API_KEY=ncbikey
-
 SINGULARITY_IMAGE="/path/to/image.sif"
-APP_DIR="/path/to/dir"
 DATA_DIR="/path/to/dir"
 SQLITE_DB_DIR=$DATA_DIR"/path/to/dir"
 TRANSCRIPTOME_DATA_DIR=$DATA_DIR"/path/to/dir"
@@ -194,7 +192,7 @@ Querying either the sqlite database or raw_transcriptome.fna will reveal at this
   <img src="https://github.com/user-attachments/assets/850ef67e-5531-43d6-b3d0-ec572caa5c0f" width=70%>
 </p>
 
-The transcripts could include assemblies generated from DNA contamination, degraded RNA, transcriptional noise, chimeric assemblies, and other anomalies, in addition to real mRNA transcripts and their isoforms. Also, when many samples are included for the same transcriptome there may be redundancies (e.g. we observed an apparent transcript for Ubiquitin generated separately for almost every sample). Consequently, it becomes necessary to "thin" these candidates by removing suspected anomalies and redundancies. TATAT accomplishes this by using EvidentialGenes in the following command:
+The transcripts could include assemblies generated from DNA contamination, degraded RNA, transcriptional noise, chimeric assemblies, and other anomalies, in addition to real mRNA transcripts and their isoforms. Also, when many samples are included for the same transcriptome there may be redundancies (e.g. we observed an apparent transcript for Ubiquitin generated separately for almost every sample). Consequently, it becomes necessary to "thin" these candidates by removing suspected anomalies and redundancies. TATAT accomplishes this by using EvidentialGene in the following command:
 ```
 singularity exec \
     --pwd /src \
@@ -212,7 +210,7 @@ singularity exec \
     -run_evigene -cpus $SLURM_CPUS_PER_TASK -mem $SLURM_MEM_PER_NODE -phetero 2 -minaa 99 \
     -run_transcript_metadata_appender -run_cds_and_metadata
 ```
-Additionally, for this tutorial we pass the "phetero" arg, as we expect there to be some sequence discrepencies due to heterozygosity in the samples, and "minaa", as mammals tend to have longer genes and this removes genes with fewer than 100 amino acids. For more details on optimizing these args with other organisms, see the EvidentialGenes homepage.
+Additionally, for this tutorial we pass the "phetero" arg, as we expect there to be some sequence discrepencies due to heterozygosity in the samples, and "minaa", as mammals tend to have longer genes and this removes genes with fewer than 100 amino acids. For more details on optimizing these args with other organisms, see the EvidentialGene [homepage](http://arthropods.eugenes.org/EvidentialGene/evigene/).
 
 This step generally takes a couple hours to run, but once completed it will have populated the "cds" table with candidate CDS ids, start and end positions derived from the raw transcripts, strand directionality, the parental transcript id, and other information. However, ideally the "transcripts" table entries will have direct connections to the "cds" table entries. To quickly add this, the following command is run:
 ```
