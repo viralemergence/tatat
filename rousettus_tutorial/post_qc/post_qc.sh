@@ -46,7 +46,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR/ncbi:/src/ncbi \
     --bind $POST_QC_DIR/ncbi/ncbi_dataset/data/GCF_014176215.1:/src/cds \
     $SINGULARITY_IMAGE \
@@ -58,7 +57,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     --bind $POST_QC_DIR/ncbi:/src/ncbi \
     --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
@@ -98,7 +96,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR/ncbi:/src/ncbi \
     --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
     $SINGULARITY_IMAGE \
@@ -112,7 +109,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -127,7 +123,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $POST_QC_DIR/ncbi/ncbi_dataset/data/GCF_014176215.1:/src/cds \
     --bind $POST_QC_DIR/gene_comparison:/src/gene_comparison \
@@ -135,7 +130,7 @@ singularity exec \
     python3 /src/app/post_annotation_qc/pairwise_align_core_genes.py \
     -tatat_cds_fasta /src/transcriptome_data/rousettus_cds_core.fna \
     -ncbi_cds_fasta /src/cds/cds_from_genomic.fna \
-    -outdir /src/gene_comparison -cpus 10
+    -outdir /src/gene_comparison -cpus $SLURM_CPUS_PER_TASK
 
 # Index core genes with salmon
 singularity exec \
@@ -145,7 +140,7 @@ singularity exec \
     --bind $POST_QC_DIR/salmon_index:/src/salmon_index \
     $SINGULARITY_IMAGE \
     salmon index -t /src/transcriptome_data/rousettus_cds_core.fna \
-    -i /src/salmon_index/rousettus_core -p 10
+    -i /src/salmon_index/rousettus_core -p $SLURM_CPUS_PER_TASK
 
 # Calculate salmon counts as array (depending on sample count)
 SALMON_ARRAY_SCRIPT=$ROUSETTUS_TUTORIAL_DIR/post_qc/post_qc_salmon_array.sh
@@ -155,7 +150,6 @@ sbatch -W $SALMON_ARRAY_SCRIPT $ENV_FILE
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR:/src/data \
     --bind $SALMON_COUNTS_COLLATED_DIR:/src/salmon_counts_collated \
     $SINGULARITY_IMAGE \
@@ -167,7 +161,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR:/src/data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -181,7 +174,6 @@ singularity exec \
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $TRANSCRIPTOME_DATA_DIR:/src/transcriptome_data \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
@@ -200,5 +192,5 @@ singularity exec \
     --bind $BUSCO_DATA_DIR:/src/data/busco \
     $SINGULARITY_IMAGE \
     busco -i /src/transcriptome_data/rousettus_aa_core_busco.faa \
-    -m proteins -l vertebrata_odb12 -c 10 \
+    -m proteins -l vertebrata_odb12 -c $SLURM_CPUS_PER_TASK \
     --opt-out-run-stats

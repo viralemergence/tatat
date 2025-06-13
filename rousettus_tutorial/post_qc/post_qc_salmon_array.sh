@@ -23,17 +23,16 @@ module load singularity
 SRA_NUMBER=$(singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $SQLITE_DB_DIR:/src/sqlite_db \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/sample_metadata_extraction.py \
     -sqlite_db /src/sqlite_db/tatat.db \
-    -array_index $SLURM_ARRAY_TASK_ID)
+    -array_index $SLURM_ARRAY_TASK_ID \
+    -return_uid)
 
 singularity exec \
     --pwd /src \
     --no-home \
-    --bind $APP_DIR:/src/app \
     --bind $POST_QC_DIR/salmon_index:/src/salmon_index \
     --bind $FASTQ_TRIMMED_DIR:/src/fastq_trimmed \
     --bind $SALMON_COUNTS_DIR:/src/salmon_counts \
@@ -41,7 +40,7 @@ singularity exec \
     $SINGULARITY_IMAGE \
     python3 -u /src/app/post_annotation_qc/salmon_orchestration.py \
     -fastq_dir /src/fastq_trimmed \
-    -sra $SRA_NUMBER -cpus 10 \
+    -sra $SRA_NUMBER -cpus $SLURM_CPUS_PER_TASK \
     -salmon_index /src/salmon_index/rousettus_core \
     -outdir /src/salmon_counts \
     -collated_dir /src/salmon_counts_collated
