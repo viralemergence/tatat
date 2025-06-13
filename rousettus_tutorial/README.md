@@ -290,6 +290,7 @@ singularity exec \
     -table_name accession_numbers -rna_type coding
 ```
 Once completed, the "accession_numbers" table will be populated with accession numbers and gene symbols.
+
 Notes:
 - The rna_type "coding" is used to skip any genes that may be non-coding.
 - Here we bind the "/etc" directory, as this contains credentials necessary for interacting with web services. Depending on the host system's directory structure, this may need to be changed
