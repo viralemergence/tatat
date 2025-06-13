@@ -186,7 +186,7 @@ singularity exec \
 ```
 The single file, called "raw_transcriptome.fna" here, is a fasta file that contains all the *de novo* assemblies generated previously. This file is used repeatedly later on, so make sure not to delete it. Also, because this file tends to be large, it was decided it was better to leave it out of the sqlite database. However, information such as the sequence ids, sequence lengths, and which sample they come from is all stored in the sqlite "transcripts" table.
 
-Querying either the sqlite database or raw_transcriptome.fna will reveal at this point ~15 million transcripts have been generated, which far exceed the expected number of genes. This is likely because these potential candidates are not all biologically relevant, as outlined in the diagram below:
+Querying either the sqlite database or raw_transcriptome.fna will reveal at this point ~14.5 million transcripts have been generated, which far exceed the expected number of genes. This is likely because these potential candidates are not all biologically relevant, as outlined in the diagram below:
 <br>
 <p align=center>
   <img src="https://github.com/user-attachments/assets/850ef67e-5531-43d6-b3d0-ec572caa5c0f" width=70%>
