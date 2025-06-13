@@ -43,7 +43,7 @@ Notes:
 - The individual stage runtimes do not add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the runtimes
 - To reiterate, the resource usage for Assembly is per job, but 10 jobs were run in parallel
 - For some of these stages the full RAM requested was not used, but often was close. E.g. Thinning in one run used 58 Gb of RAM, but only reported using 50 Gb in another.
-
+<br><br>
 ### Getting Started
 A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial) folder and new users are encouraged to work through it. However, some general notes are included here:
 - All the bash scripts provided require the .env file to be filled out correctly. If you wish to use them, fill out the .env file before running anything, otherwise the scripts will throw errors.
