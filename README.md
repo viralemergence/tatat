@@ -32,7 +32,7 @@ NOTE: It is not required to pull sequencing data from the SRA; it is a feature t
 The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder totalled up to 690 GB of uncompressed sequencing data. The assemblies were processed in parallel (as described above), but all other stages were run as single, unified jobs. The entire TATAT coding gene workflow was run for the tutorial 3 times and the median taken from the runs to determine overall runtime and runtime per stage, using the same resources. Times were rounded to the nearest 10 minutes.
 
 | Stage | Runtime | CPUs | RAM | Parallel |
-| ----- | ----- | ----- | ----- | ----- |
+| :--- | :---: | :---: | :---: | :---: |
 | Overall | 8 hr 10 min | | | |
 | Assembly | 3 hr 40 min | 10 | 50 GB | 10 jobs |
 | Thinning | 1 hr 50 min | 10 | 60 GB | No |
