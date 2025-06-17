@@ -38,7 +38,7 @@ The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder t
 | Thinning | 1 hr 50 min | 10 | 60 GB | No |
 | Annotation | 2 hr 30 min | 20 | 60 GB | No |
 
-In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive coding transcriptome in ~8 hrs (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
+In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive coding transcriptome in ~8 hours (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
 
 Notes:
 - The individual stage runtimes do not perfectly add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the individual stage runtimes
@@ -59,4 +59,4 @@ A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial)
 ### Citing
 If you use TATAT in your work, please cite the publication listed below:
 <br><br>
-*Publication still pending*
+*Publication pending*
