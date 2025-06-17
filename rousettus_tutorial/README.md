@@ -336,7 +336,7 @@ This will produce a fna file where each sequence has the unique cds_id assigned 
 - Checking if the host system stores its SSL certificates in a directory other than "/etc".
 
 ### TATAT Coding Genes: Post QC Summary
-Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome produced reliable sequences for subsequent analysis. We will not cover each individual step, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
+Normally, after the annotation stage of TATAT is complete, there are no additional steps. However, in the interest of validating TATAT we generated a number of scripts to ensure the final coding transcriptome from this tutorial/dataset produced reliable sequences for subsequent analysis. We will not cover each individual step, but they can all be found in [post_qc.sh](post_qc/post_qc.sh)
 <br><br>
 Similarly, an in-depth discussion of the QC results from each script are in the publication. Please refer to the publication if you want to compare your outputs, especially Figure 2.
 <br><br>
