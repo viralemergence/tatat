@@ -41,10 +41,10 @@ The 20 samples detailed in the [rousettus_tutorial](rousettus_tutorial) folder t
 In summary, 20 non-model organism samples of raw RNA-seq data, totalling 690 GB were converted to a comprehensive coding transcriptome in ~8 hours (a single workday). The assembly stage required the most resources at 100 CPUs and 500 GB of RAM, but this step could be run sequentially rather than in parallel, and each assembly then only requires 10 CPUs and 50 GB RAM.
 
 Notes:
-- The individual stage runtimes do not perfectly add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the individual stage runtimes
-- To reiterate, the resource usage for Assembly is *per* job, but 10 jobs were run in parallel, totalling 100 CPUs and 500 GB RAM
-- For some of these stages the full RAM requested was not used, but often was close. E.g. Thinning in one run used 58 Gb of RAM, 50 Gb in another, but never the full 60 GB. The extra RAM requested allows wiggle room to prevent an Out Of Memory (OOM) error
-- This was just for the coding genes; the non-coding genes took much longer and are described in the tutorial README.md
+- The individual stage runtimes do not perfectly add up to the "Overall" value because there was some additional time used for requesting and waiting on resource allocation between stages, and the rounding to 10 minutes per stage slightly under reports the individual stage runtimes.
+- To reiterate, the resource usage for Assembly is *per* job, but 10 jobs were run in parallel, totalling 100 CPUs and 500 GB RAM.
+- For some of these stages the full RAM requested was not used, but often was close. E.g. Thinning in one run used 58 Gb of RAM, 50 Gb in another, but never the full 60 GB. The extra RAM requested allows wiggle room to prevent an Out Of Memory (OOM) error.
+- This was just for the coding genes; the non-coding genes took much longer and are described in the tutorial README.md.
 <br><br>
 ### Getting Started
 A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial) folder and new users are encouraged to work through it. However, some general notes are included here:
