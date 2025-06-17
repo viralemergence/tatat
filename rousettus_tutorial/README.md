@@ -225,7 +225,7 @@ singularity exec \
     -transcriptome holder -prefix_column holder \
     -update_transcript_cds_ids
 ```
-This is much faster and provides each transcript row with the CDS id it contains, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
+This is much faster and provides each transcript row with the CDS id(s) it corresponds to, if any. This step is also run separately so that the EvidentialGene step can be run in parallel for multiple transcriptomes. The "cds" table now contains all the information necessary to begin the Annotation stage.
 
 **Troubleshooting:** See the Assembly stage troubleshooting section for similar tips.
 
