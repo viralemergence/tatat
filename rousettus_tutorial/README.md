@@ -47,9 +47,9 @@ It is this software engineer's opinion that Docker is better than Singularity, a
 
 #### Sample Metadata
 Lastly, TATAT requires a metadata file on the samples to be analyzed. The data is stored in a sqlite database and subsequently expedites performing assemblies in parallel, running TATAT on different transcriptomes (e.g. species) in parallel, and aids in certain other functions such as looking for consensus sequences during contig thinning. An example file is [sample_metadata.csv](sample_metadata.csv). Any number of columns may be included, and they will be imported into the database, but the following columns are required: uid, transcriptome, r1_reads, r2_reads.
-- uid: A Unique IDentifier. For SRA data, it must be the SRA number. For personal samples, it may be any string of alphanumeric values without spaces, as long as no other sample has the same uid (otherwise it is not unique)
-- transcriptome: The transcriptome to which the sample belongs. This could be a species, or age group, or a random string. But the final transcriptome(s) will be generated with this information
-- r1_reads & r2_reads: The paths for the R1 and R2 reads. For the tutorial and SRA data, this does not initially need to be supplied, as TATAT will autopopulate the R1 and R2 read paths when downloading the SRA samples. However, if personal samples are being used, this information must be provided in the sample_metadata.csv file
+- uid: A Unique IDentifier. For SRA data, it must be the SRA number. For personal samples, it may be any string of alphanumeric values without spaces, as long as no other sample has the same uid (otherwise it is not unique).
+- transcriptome: The transcriptome to which the sample belongs. This could be a species, or age group, or a random string. But the final transcriptome(s) will be generated with this information.
+- r1_reads & r2_reads: The paths for the R1 and R2 reads. For the tutorial and SRA data, this does not initially need to be supplied, as TATAT will autopopulate the R1 and R2 read paths when downloading the SRA samples. However, if personal samples are being used, this information must be provided in the sample_metadata.csv file.
 
 ### TATAT Coding Genes: Running The Whole Thing
 If the .env has been correctly filled out, the BLAST database is prepared, the job scheduler used is SLURM, and all the bash scripts have been correctly modified to use whichever partition is available to the user, at this point the entire TATAT workflow can be run using [tatat.sh](tatat.sh). The command would look like:
