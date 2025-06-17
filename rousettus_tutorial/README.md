@@ -73,10 +73,10 @@ singularity exec \
 Once generated, TATAT will use the same database for all the following stages.
 <br><br>
 As a brief aside on Singularity and the args used here:
-- "exec" creates a container from the image, runs whatever code is in the command, then shuts the container down
-- "--pwd /src" sets the working directory of the container to "/src"
-- "--no-home" keeps other directories on the host system from secretly being mounted to the container
-- "--bind" gives the container access to directories on the host system, using the format of "--bind host_directory:container_directory"
+- "exec" creates a container from the image, runs whatever code is in the command, then shuts the container down.
+- "--pwd /src" sets the working directory of the container to "/src".
+- "--no-home" keeps other directories on the host system from secretly being mounted to the container.
+- "--bind" gives the container access to directories on the host system, using the format of "--bind host_directory:container_directory".
 
 ### TATAT Coding Genes: Assembly
 The [assembly_array.sh](tatat_main/assembly_array.sh) script contains all the steps necessary to generate *de novo* assemblies from the samples. The script itself can be submitted to slurm and will request 20 jobs be processed, with a maximum of only 10 at a time:
