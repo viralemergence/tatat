@@ -149,9 +149,9 @@ singularity exec \
 Each of these steps is purposely designed to be carried out separately by a specific script so that a user has the option of using their own tools as desired. E.g. Cutadapt could be used instead of FASTP and Trinity could be used instead of rnaSPAdes. Hypothetically this should cause no issues with the rest of TATAT. However, this has not currently been tested and it is highly recommended to use the default tools, especially as they have been shown in many publications to be fast and require less resources than other tools. Regardless, once these commands have finished, all the final contigs should be in the folder indicated by $RNASPADES_COLLATED_ASSEMBLY_DIR.
 
 **Troubleshooting:** If the assembly code was launched via slurm and failed, check the output error log. If run on the command line, errors will be printed to the terminal. While any number of errors could potentially be generated, the most common include:
-- file/directory does not exist: This usually results from incorrectly assigning path variables in the .env file, and needs to be corrected
-- OOM error: This stands for Out Of Memory and should not occur for the tutorial, but if the RAM amount requested was lowered or the command was run locally on a machine lacking sufficient RAM, this error could occur
-- directory already exists: This usually occurs when re-running the script and is not a problem. The mkdir commands create this error if the directory has already been generated
+- file/directory does not exist: This usually results from incorrectly assigning path variables in the .env file, and needs to be corrected.
+- OOM error: This stands for Out Of Memory and should not occur for the tutorial, but if the RAM amount requested was lowered or the command was run locally on a machine lacking sufficient RAM, this error could occur.
+- directory already exists: This usually occurs when re-running the script and is not a problem. The mkdir commands create this error if the directory has already been generated.
 
 ### TATAT Coding Genes: Thinning
 After the assembly stage has completed, the thinning stage can be run with [thinning.sh](tatat_main/thinning.sh).
