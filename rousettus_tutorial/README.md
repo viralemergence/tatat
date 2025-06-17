@@ -293,7 +293,7 @@ Once completed, the "accession_numbers" table will be populated with accession n
 
 Notes:
 - The rna_type "coding" is used to skip any genes that may be non-coding.
-- Here we bind the "/etc" directory, as this contains credentials necessary for interacting with web services. Depending on the host system's directory structure, this may need to be changed
+- Here we bind the "/etc" directory, as this contains credentials necessary for interacting with web services. Depending on the host system's directory structure, this may need to be changed.
 
 **Disclaimer**: This is the most touchy part of TATAT. Unfortunately, since the Datasets tool uses the NCBI servers, sometimes the script crashes if the servers are experiencing high demand, maintenance, database updates, or other factors not fully understood. For instance, it has been observed the NCBI servers seem to reject requests via Datasets around midnight. However, most of the time it runs correctly.
 <br><br>
