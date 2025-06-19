@@ -10,10 +10,10 @@ be generated, and we suspect will generally be of less interest to users, so tha
 the following diagram:
 <br>
 <p align=center>
-  <img src="https://github.com/user-attachments/assets/602fcf0e-0a07-4572-babb-d311a5a47711" width=60%>
+  <img src="https://github.com/user-attachments/assets/a630e879-129a-4e22-97f0-0d0de9dd0dd2" width=60%>
 </p>
 
-In this tutorial, TATAT will first be used to download the sequencing data from the Sequencing Read Archive (SRA), remove sequencing errors and adapters using FASTP, assemble the reads into contigs via *de novo* assembly with rnaSPAdes, thin out the excess contigs, then annotate the remaining contigs and select which best represent each coding gene.
+In this tutorial, TATAT will first be used to download the sequencing data from the Sequencing Read Archive (SRA), remove sequencing errors and adapters using fastp, assemble the reads into contigs via *de novo* assembly with rnaSPAdes, thin out the excess contigs, then annotate the remaining contigs and select which best represent each coding gene.
 
 ### TATAT Coding Genes: Preparation
 It should be noted that TATAT works best either in HPC or cloud based environments. Unless your local machine meets the [hardware requirements](https://github.com/viralemergence/tatat/blob/readme/README.md#hardware-requirements), do not attempt to run locally. Once the Docker image (or sif) has been downloaded or generated (see [Acquiring TATAT](https://github.com/viralemergence/tatat/blob/readme/README.md#acquiring-tatat)), it can be run via bash scripts or on the command line. We will briefly discuss some of the additional preparation necessary to run TATAT as follows:
@@ -113,7 +113,7 @@ singularity exec \
     -sqlite_db /src/sqlite_db/tatat.db
 ```
 
-Once downloaded, the reads are processed with FASTP, removing low quality reads, fixing sequences errors when possible, and removing the adapter sequences:
+Once downloaded, the reads are processed with fastp, removing low quality reads, fixing sequences errors when possible, and removing the adapter sequences:
 ```
 singularity exec \
     --pwd /src \
@@ -128,7 +128,7 @@ singularity exec \
     -sqlite_db /src/sqlite_db/tatat.db \
     -uid $SRA_NUMBER -r1_adapter $R1_ADAPTER -r2_adapter $R2_ADAPTER -cpus $SLURM_CPUS_PER_TASK
 ```
-It is worth noting that the code is written to automatically detect if the reads are paired. Some of these samples do not have paired reads. When this occurs, the R2 adapter sequence is not used and the FASTP command is altered under the hood.
+It is worth noting that the code is written to automatically detect if the reads are paired. Some of these samples do not have paired reads. When this occurs, the R2 adapter sequence is not used and the fastp command is altered under the hood.
 
 Finally, the trimmed reads are passed to rnaSPAdes to generate contigs:
 ```
@@ -146,7 +146,7 @@ singularity exec \
     -unique_identifier $SRA_NUMBER -cpus $SLURM_CPUS_PER_TASK -memory $MEM_IN_GB
 ```
 
-Each of these steps is purposely designed to be carried out separately by a specific script so that a user has the option of using their own tools as desired. E.g. Cutadapt could be used instead of FASTP and Trinity could be used instead of rnaSPAdes. Hypothetically this should cause no issues with the rest of TATAT. However, this has not currently been tested and it is highly recommended to use the default tools, especially as they have been shown in many publications to be fast and require less resources than other tools. Regardless, once these commands have finished, all the final contigs should be in the folder indicated by $RNASPADES_COLLATED_ASSEMBLY_DIR.
+Each of these steps is purposely designed to be carried out separately by a specific script so that a user has the option of using their own tools as desired. E.g. Cutadapt could be used instead of fastp and Trinity could be used instead of rnaSPAdes. Hypothetically this should cause no issues with the rest of TATAT. However, this has not currently been tested and it is highly recommended to use the default tools, especially as they have been shown in many publications to be fast and require less resources than other tools. Regardless, once these commands have finished, all the final contigs should be in the folder indicated by $RNASPADES_COLLATED_ASSEMBLY_DIR.
 
 **Troubleshooting:** If the assembly code was launched via slurm and failed, check the output error log. If run on the command line, errors will be printed to the terminal. While any number of errors could potentially be generated, the most common include:
 - file/directory does not exist: This usually results from incorrectly assigning path variables in the .env file, and needs to be corrected.
