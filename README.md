@@ -25,7 +25,7 @@ The following diagram shows an overview of the intended workflow for TATAT and w
 NOTE: It is not required to pull sequencing data from the SRA; it is a feature that can be used.
 <br><br>
 <p align=center>
-  <img src="https://github.com/user-attachments/assets/602fcf0e-0a07-4572-babb-d311a5a47711" width=60%>
+  <img src="https://github.com/user-attachments/assets/a630e879-129a-4e22-97f0-0d0de9dd0dd2" width=60%>
 </p>
 
 ### Benchmarking
@@ -50,7 +50,7 @@ Notes:
 A detailed tutorial is available in the [rousettus_tutorial](rousettus_tutorial) folder and new users are encouraged to work through it. However, some general notes are included here:
 - All the bash scripts provided require the .env file to be filled out correctly. If you wish to use them, fill out the .env file before running anything, otherwise the scripts will throw errors.
 - The annotation step requires a BLAST database. The vertebrate database used in the initial publication is available at: [vertebrata core nt BLAST db](https://zenodo.org/records/15685806). However, if a different or updated database is desired, follow the steps outlined in the rousettus tutorial.
-- The default assembly tools include FASTP and rnaSPAdes, and the default thinning tool is EvidentialGene. TATAT has been designed to allow other tools to be used at these steps and then fed into the workflow. However, currently no other tools have been tested and we cannot guarantee the workflow will function as expected. Therefore, users are encouraged to use the bioinformatic tools already provided in the TATAT Docker image.
+- The default assembly tools include fastp and rnaSPAdes, and the default thinning tool is EvidentialGene. TATAT has been designed to allow other tools to be used at these steps and then fed into the workflow. However, currently no other tools have been tested and we cannot guarantee the workflow will function as expected. Therefore, users are encouraged to use the bioinformatic tools already provided in the TATAT Docker image.
 <br><br>
 ### Limitations
 - Currently TATAT is not designed to capture all isoforms in the final transcriptome, and is instead designed to select the longest potential isoform to represent the gene. This means that analyses, such as Differential Gene Expression (DGE) analysis, using TATAT transcriptomes are able to show overall changes in gene expression, but not per isoform.
