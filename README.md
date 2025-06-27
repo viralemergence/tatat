@@ -25,7 +25,7 @@ The following diagram shows an overview of the intended workflow for TATAT and w
 NOTE: It is not required to pull sequencing data from the SRA; it is a feature that can be used.
 <br><br>
 <p align=center>
-  <img src="https://github.com/user-attachments/assets/a630e879-129a-4e22-97f0-0d0de9dd0dd2" width=60%>
+  <img src="https://github.com/user-attachments/assets/57e6ea7a-bde1-4f85-8815-f0ee0b230071" width=60%>
 </p>
 
 ### Benchmarking
