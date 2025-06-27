@@ -10,7 +10,7 @@ be generated, and we suspect will generally be of less interest to users, so tha
 the following diagram:
 <br>
 <p align=center>
-  <img src="https://github.com/user-attachments/assets/a630e879-129a-4e22-97f0-0d0de9dd0dd2" width=60%>
+  <img src="https://github.com/user-attachments/assets/57e6ea7a-bde1-4f85-8815-f0ee0b230071" width=60%>
 </p>
 
 In this tutorial, TATAT will first be used to download the sequencing data from the Sequencing Read Archive (SRA), remove sequencing errors and adapters using fastp, assemble the reads into contigs via *de novo* assembly with rnaSPAdes, thin out the excess contigs, then annotate the remaining contigs and select which best represent each coding gene.
