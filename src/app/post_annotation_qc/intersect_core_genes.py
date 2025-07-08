@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-from csv import DictReader
 import matplotlib.pyplot as plt # type: ignore
 from matplotlib_venn import venn2 # type: ignore
 from pathlib import Path
@@ -59,10 +58,18 @@ class GeneIntersector:
 
     @staticmethod
     def generate_venn_diagram(tatat_core_genes: set[str], ncbi_genes: set[str], outdir: Path) -> None:
-        venn_diagram = venn2([tatat_core_genes, ncbi_genes], ("TATAT Genes", "NCBI Genes"))
-        venn_diagram.get_label_by_id("A").set_position((-.7,0))
-        venn_diagram.get_label_by_id("B").set_position((.7,0))
-        out_plot = outdir / "gene_intersection_venn.png"
+        plt.rcParams["svg.fonttype"] = "none"
+        venn_diagram = venn2([tatat_core_genes, ncbi_genes], ("TATAT Genes", "NCBI Genes"),
+                             set_colors=((3/256, 10/256, 167/256), (103/256, 146/256, 103/256)), alpha=0.75)
+        # Cobalt Blue (3/256, 10/256, 167/256)
+        # Terre Verte (103/256, 146/256, 103/256)
+        venn_diagram.get_label_by_id("A").set_position((-0.6,0.2))
+        venn_diagram.get_label_by_id("B").set_position((0.6,0.2))
+
+        venn_diagram.get_label_by_id("10").set_position((-0.7,-0.1))
+        venn_diagram.get_label_by_id("01").set_position((0.7,-0.1))
+
+        out_plot = outdir / "gene_intersection_venn.svg"
         plt.savefig(out_plot, bbox_inches="tight")
         plt.close()
 

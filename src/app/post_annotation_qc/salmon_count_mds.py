@@ -51,14 +51,18 @@ class SalmonCountMDS:
 
     @classmethod
     def generate_mds_graph(cls, df: pd.DataFrame, outdir: Path) -> None:
+        plt.rcParams["svg.fonttype"] = "none"
         fig, ax = plt.subplots(figsize=(3, 3))
-        scatter = sns.scatterplot(x="D1", y="D2", data=df, style="Tissue", hue="Tissue")
+        scatter = sns.scatterplot(x="D1", y="D2", data=df, style="Tissue", hue="Tissue", s=100)
+        ax.ticklabel_format(axis="x", style="scientific", scilimits=(0,0), useMathText=True)
+        ax.ticklabel_format(axis="y", style="scientific", scilimits=(0,0), useMathText=True)
+
         sns.move_legend(scatter, "upper left", bbox_to_anchor=(1,1))
 
         cls.add_tissue_connecting_lines(df)
         cls.add_gender_symbol(scatter, df)
 
-        outpath = outdir / "MDS.png"
+        outpath = outdir / "MDS.svg"
         fig.savefig(outpath, bbox_inches="tight", dpi=300)
         plt.close(fig)
 
@@ -83,7 +87,7 @@ class SalmonCountMDS:
                 text = "\u2642"
             if datum["Gender"] == "female":
                 text = "\u2640"
-            scatter.text(datum["D1"]+(spacer/2), datum["D2"]-spacer, text, fontsize=8)
+            scatter.text(datum["D1"]+(spacer/2), datum["D2"]-spacer, text, fontsize=10, fontweight="bold")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

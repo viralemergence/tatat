@@ -222,6 +222,7 @@ class PairwiseGeneAligner:
 
     @staticmethod
     def plot_bin_counts(bin_counts: pd.DataFrame, outdir: Path) -> None:
+        plt.rcParams["svg.fonttype"] = "none"
         cmap_colors = ["crimson", "y", "tab:green"]
         cmap = LinearSegmentedColormap.from_list("red_to_green", cmap_colors)
 
@@ -238,12 +239,13 @@ class PairwiseGeneAligner:
         x_labels = ["TATAT", "NCBI", "NCBI\n(80% Length\nSimilarity)"]
         bplot.set_xticklabels(x_labels, rotation=45, ha="center")
 
-        out_plot = outdir / "global_alignment_sequence_identities_bar.png"
+        out_plot = outdir / "global_alignment_sequence_identities_bar.svg"
         plt.savefig(out_plot, bbox_inches="tight")
         plt.close()
 
     @staticmethod
     def plot_sequence_lengths(tatat_ncbi_alignment_data: pd.DataFrame, outdir: Path) -> None:
+        plt.rcParams["svg.fonttype"] = "none"
         bin_number = 15
         joint = jointplot(data=tatat_ncbi_alignment_data,
                           x="tatat_len", y="ncbi_len", kind="hist",
@@ -251,7 +253,7 @@ class PairwiseGeneAligner:
                           log_scale=True)
         joint.ax_joint.plot([300, 60_000], [300, 60_000], ls="--", color="black")
         joint.set_axis_labels("TATAT Sequence Lengths", "NCBI Sequence Lengths")
-        out_plot = outdir / "gene_lengths_histogram.png"
+        out_plot = outdir / "gene_lengths_histogram.svg"
         plt.savefig(out_plot)
         plt.close()
 

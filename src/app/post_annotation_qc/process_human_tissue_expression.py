@@ -2,9 +2,11 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from csv import DictReader
 import matplotlib.pyplot as plt # type: ignore
+from numpy import where # type: ignore
 import pandas as pd # type: ignore
 from pathlib import Path
 from seaborn import violinplot # type: ignore
+from scipy.stats import mannwhitneyu # type: ignore
 from typing import Any
 
 class ExpressionManager:
@@ -104,13 +106,21 @@ class ExpressionManager:
     def generate_pie_chart(top_tissue_count: dict[int], outdir: Path) -> None:
         tissues, counts = zip(*[(k, v) for k, v in top_tissue_count.items()])
         explode = [0.1] + [0]*(len(tissues)-1)
-        labels = list(tissues[:10]) + [""]*(len(tissues)-10)
+        label_inclusion_count = 7
+        labels = list(tissues[:label_inclusion_count]) + [""]*(len(tissues)-label_inclusion_count)
         labels = [label if len(label) < 30 else f"{label[:20]}..." for label in labels]
-        autopct = lambda v: f"{v:.1f}%" if v > 2.3 else None
+        labels = [label.replace("_", " ") for label in labels]
+        autopct = lambda v: f"{v:.1f}%" if v > 2.5 else None
 
-        plt.pie(counts, labels=labels, explode=explode, autopct=autopct, pctdistance=0.75)
+        alpha = 1
+        single_color = [[103/256, 146/256, 103/256, alpha]]
+        # Terre Verte (103/256, 146/256, 103/256)
+
+        plt.rcParams["svg.fonttype"] = "none"
+        plt.pie(counts, labels=labels, explode=explode, autopct=autopct, pctdistance=0.75, startangle=-180, colors=single_color,
+                wedgeprops={"linewidth": 0.3, "edgecolor": "white"})
         plt.title("Missing Genes By Tissue")
-        out_plot = outdir / "missing_genes_by_tissue_pie.png"
+        out_plot = outdir / "missing_genes_by_tissue_pie.svg"
         plt.savefig(out_plot, bbox_inches="tight")
         plt.close()
 
@@ -119,6 +129,7 @@ class ExpressionManager:
         top_tissue_per_gene_df = pd.DataFrame(top_tissue_per_gene)
 
         top_tissue_per_gene_df = top_tissue_per_gene_df[top_tissue_per_gene_df["Tissue"].isin(["Testis"])]
+        top_tissue_per_gene_df["Testis Genes"] = where(top_tissue_per_gene_df["Missing Genes"] == True, "Missing", "Present")
         medians = top_tissue_per_gene_df.groupby(["Missing Genes"])["Expression"].median()
         lower_quartiles = top_tissue_per_gene_df.groupby(["Missing Genes"])["Expression"].quantile(q=0.25)
         print("Medians:")
@@ -126,9 +137,19 @@ class ExpressionManager:
         print("\nLower Quartiles")
         print(lower_quartiles)
 
-        vplot = violinplot(data=top_tissue_per_gene_df, x="Tissue", y="Expression", hue="Missing Genes", log_scale=True, bw_adjust=.5)
-        vplot.axhline(y=medians[False], color="lightgreen", linestyle="--")
-        out_plot = outdir / "missing_genes_expression_violin.png"
+        true_group = top_tissue_per_gene_df[top_tissue_per_gene_df["Missing Genes"] == True]["Expression"]
+        false_group = top_tissue_per_gene_df[top_tissue_per_gene_df["Missing Genes"] == False]["Expression"]
+        stat, p_val = mannwhitneyu(true_group, false_group, alternative="two-sided")
+        print(f"P-value: {p_val}")
+
+        plt.rcParams["svg.fonttype"] = "none"
+        colors = {"Present": (233/256, 116/256, 81/256), "Missing": (103/256, 146/256, 103/256)}
+        # Burnt Sienna (233/256, 116/256, 81/256)
+        # Terre Verte (103/256, 146/256, 103/256)
+        vplot = violinplot(data=top_tissue_per_gene_df, x="Testis Genes", y="Expression", log_scale=True, bw_adjust=.5,
+                           palette=colors, order=["Present", "Missing"])
+        vplot.axhline(y=medians[False], color="black", linestyle="--")
+        out_plot = outdir / "missing_genes_expression_violin.svg"
         plt.savefig(out_plot)
 
 if __name__ == "__main__":
